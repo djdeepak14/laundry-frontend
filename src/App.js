@@ -2,58 +2,81 @@ import React, { useState } from 'react';
 import './App.css';
 
 const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const timeSlots = Array.from({ length: 14 }, (_, i) => `${8 + i}:00`);
+const machines = ["Washer 1", "Washer 2", "Dryer 1", "Dryer 2"];
+
+// Dynamic time slot generation
+const generateTimeSlots = (startHour, endHour) => {
+  const slots = [];
+  for (let hour = startHour; hour <= endHour; hour++) {
+    slots.push(`${hour}:00`);
+  }
+  return slots;
+};
 
 const App = () => {
   const [selected, setSelected] = useState([]);
+  const timeSlots = generateTimeSlots(8, 22);
 
   const toggleSelect = (id) => {
-    setSelected(prev =>
-      prev.includes(id)
-        ? prev.filter(slot => slot !== id)
-        : prev.length < 2
-          ? [...prev, id]
-          : prev
-    );
+    const machine = id.split('-')[2]; // Extract machine from id (day-time-machine)
+    const isWasher = machine.includes("Washer");
+    const isDryer = machine.includes("Dryer");
+
+    setSelected(prev => {
+      // If already selected, remove it
+      if (prev.includes(id)) {
+        return prev.filter(slot => slot !== id);
+      }
+
+      // Count current washers and dryers
+      const hasWasher = prev.some(slot => slot.includes("Washer"));
+      const hasDryer = prev.some(slot => slot.includes("Dryer"));
+
+      // Enforce rules: max 2 selections, must be one washer and one dryer
+      if (prev.length >= 2) {
+        return prev; // Can't add more than 2
+      }
+      if (isWasher && hasWasher) {
+        return prev; // Can't add another washer
+      }
+      if (isDryer && hasDryer) {
+        return prev; // Can't add another dryer
+      }
+
+      return [...prev, id];
+    });
   };
 
   return (
-    
     <div className="container">
-      {/* Logo with 'sevas.png' */}
       <img src="/sevas.png" alt="Sevas Logo" className="logo" />
       <h1 className="heading">Sevas Online Laundry Booking System</h1>
 
-      <div className="table">
-        <div className="row header">
-          <div className="cell time-cell"></div>
-          {weekdays.map(day => (
-            <div key={day} className="cell header-cell">{day}</div>
-          ))}
-        </div>
-
-        {timeSlots.map(time => (
-          <div key={time} className="row">
-            <div className="cell time-cell">{time}</div>
-            {weekdays.map(day => {
-              const id = `${day}-${time}`;
-              return (
-                <div key={id} className="cell machine-cell">
-                  {["Washer 1", "Washer 2", "Dryer 1", "Dryer 2"].map(machine => {
-                    const machineId = `${id}-${machine}`;
-                    return (
-                      <button
-                        key={machineId}
-                        className={`slot ${selected.includes(machineId) ? 'selected' : ''}`}
-                        onClick={() => toggleSelect(machineId)}
-                      >
-                        {machine}
-                      </button>
-                    );
-                  })}
+      <div className="schedule">
+        {weekdays.map(day => (
+          <div key={day} className="day-section">
+            <h2 className="day-header">{day}</h2>
+            <div className="machine-grid">
+              {machines.map(machine => (
+                <div key={machine} className="machine-column">
+                  <div className="machine-label">{machine}</div>
+                  <div className="time-scroll">
+                    {timeSlots.map(time => {
+                      const id = `${day}-${time}-${machine}`;
+                      return (
+                        <button
+                          key={id}
+                          className={`time-slot ${selected.includes(id) ? 'selected' : ''}`}
+                          onClick={() => toggleSelect(id)}
+                        >
+                          {time}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         ))}
       </div>

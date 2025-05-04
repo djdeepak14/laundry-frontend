@@ -1,55 +1,125 @@
 .container {
+  max-width: 1200px;
+  margin: 0 auto;
   padding: 20px;
   font-family: Arial, sans-serif;
 }
 
 .logo {
-  width: 100px;
+  max-width: 150px;
   margin-bottom: 10px;
 }
 
 .heading {
-  font-size: 24px;
+  text-align: center;
+  color: #333;
   margin-bottom: 20px;
 }
 
-.table {
+.schedule {
   display: flex;
   flex-direction: column;
-  overflow-x: auto;
+  gap: 20px;
 }
 
-.row {
+.day-section {
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.day-header {
+  font-size: 1.5em;
+  color: #4a90e2;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.machine-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.machine-column {
   display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.cell {
-  border: 1px solid #ccc;
-  padding: 5px;
-  min-width: 120px;
-}
-
-.header-cell {
+.machine-label {
   font-weight: bold;
+  background-color: #f5f5f5;
+  padding: 8px;
+  width: 100%;
+  text-align: center;
+  border: 1px solid #ddd;
+  border-bottom: none;
+}
+
+.time-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  width: 100%;
+  background-color: #fafafa;
+}
+
+.time-slot {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-bottom: 1px solid #eee;
+  background-color: transparent;
+  cursor: pointer;
+  text-align: center;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.time-slot:hover {
+  background-color: #e0e0e0;
+}
+
+.time-slot.selected {
+  background-color: #4a90e2;
+  color: white;
+}
+
+.time-slot.selected:hover {
+  background-color: #357abd;
+}
+
+.time-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.time-scroll::-webkit-scrollbar-thumb {
+  background-color: #4a90e2;
+  border-radius: 4px;
+}
+
+.time-scroll::-webkit-scrollbar-track {
   background-color: #f5f5f5;
 }
 
-.time-cell {
-  background-color: #eee;
-  font-weight: bold;
-}
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
 
-.machine-cell {
-  display: flex;
-  flex-direction: column;
-}
+  .machine-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
-.slot {
-  margin: 2px;
-  padding: 5px;
-  font-size: 12px;
-}
+  .time-slot {
+    font-size: 12px;
+    padding: 8px;
+  }
 
-.selected {
-  background-color: lightgreen;
+  .day-header {
+    font-size: 1.2em;
+  }
 }
