@@ -18,8 +18,10 @@ const App = () => {
   };
 
   return (
+    
     <div className="container">
-      <img src="/sevas.png" alt="Logo" className="logo" />
+      {/* Logo with 'sevas.png' */}
+      <img src="/sevas.png" alt="Sevas Logo" className="logo" />
       <h1 className="heading">Sevas Online Laundry Booking System</h1>
 
       <div className="table">
