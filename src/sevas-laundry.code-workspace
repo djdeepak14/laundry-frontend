@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "sevas-laundry",
+			"path": ".."
+		},
+		{
+			"name": "my-react-app",
+			"path": "../../my-react-app"
+		}
+	],
+	"settings": {}
+}
