@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 
 import CalendarHeader from './components/CalendarHeader';
-import BookedMachinesList from './components/BookedMachinesList';
 
 import CalendarGrid from './components/CalendarGrid';
-import MachineBookingCard from './components/MachineBookingCard';  
+import MachineBookingCard from './components/MachineBookingCard';
 import SelectedDaySchedule from './components/SelectedDaySchedule';
-
 import LogoHeader from './components/LogoHeader';
-
+import BookedMachinesList from './BookedMachinesList';
 const months = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
