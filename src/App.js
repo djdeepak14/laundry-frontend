@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 
 import CalendarHeader from './components/CalendarHeader';
-
+import BookedMachinesList from './components/BookedMachinesList';
 import CalendarGrid from './components/CalendarGrid';
 import MachineBookingCard from './components/MachineBookingCard';
 import SelectedDaySchedule from './components/SelectedDaySchedule';
 import LogoHeader from './components/LogoHeader';
-import BookedMachinesList from './BookedMachinesList';
+
 const months = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
@@ -22,15 +22,13 @@ const machines = [
 ];
 
 const generateTimeSlots = (startHour, endHour) => {
-  const slots = [];
-  for (let hour = startHour; hour < endHour; hour++) {
-    slots.push(`${hour}:00 - ${hour + 1}:00`);
-  }
-  return slots;
+  return Array.from({ length: endHour - startHour }, (_, i) => {
+    const hour = i + startHour;
+    return `${hour}:00 - ${hour + 1}:00`;
+  });
 };
 
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
 const getWeekNumber = (date) => {
@@ -42,7 +40,7 @@ const getWeekNumber = (date) => {
 };
 
 const App = () => {
-  const today = new Date(2025, 4, 6);
+  const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDay, setSelectedDay] = useState(null);
@@ -99,18 +97,16 @@ const App = () => {
     const booking = { id, day, time, machine, machineType };
 
     const weekBookings = bookings[weekKey] || [];
-
-    const washerCount = weekBookings.filter((b) => b.machineType === 'washer').length;
-    const dryerCount = weekBookings.filter((b) => b.machineType === 'dryer').length;
-
-    const isBooked = weekBookings.some((b) => b.id === id);
+    const washerCount = weekBookings.filter(b => b.machineType === 'washer').length;
+    const dryerCount = weekBookings.filter(b => b.machineType === 'dryer').length;
+    const isBooked = weekBookings.some(b => b.id === id);
 
     if (isBooked) {
-      setBookings((prev) => ({
+      setBookings(prev => ({
         ...prev,
-        [weekKey]: prev[weekKey].filter((b) => b.id !== id),
+        [weekKey]: prev[weekKey].filter(b => b.id !== id),
       }));
-      setSelectedSlots((prev) => ({ ...prev, [`${day}-${machine}`]: '' }));
+      setSelectedSlots(prev => ({ ...prev, [`${day}-${machine}`]: '' }));
     } else {
       if (machineType === 'washer' && washerCount >= 2) {
         alert("You can only book 2 washing machines per week.");
@@ -120,10 +116,11 @@ const App = () => {
         alert("You can only book 2 dryers per week.");
         return;
       }
-      setBookings((prev) => ({
+      setBookings(prev => ({
         ...prev,
         [weekKey]: [...weekBookings, booking],
       }));
+      setSelectedSlots(prev => ({ ...prev, [`${day}-${machine}`]: time }));
     }
   };
 
@@ -132,42 +129,41 @@ const App = () => {
     const weekKey = getWeekKey(date);
     const weekBookings = bookings[weekKey] || [];
 
-    const isSelected = weekBookings.some((b) => b.id === id);
-    const isBookedElsewhere = weekBookings.some(
-      (b) => b.machine === machine && b.id !== id
-    );
+    const isSelected = weekBookings.some(b => b.id === id);
+    const isBookedElsewhere = weekBookings.some(b => b.machine === machine && b.id !== id);
 
-    const washerCount = weekBookings.filter((b) => b.machineType === 'washer').length;
-    const dryerCount = weekBookings.filter((b) => b.machineType === 'dryer').length;
+    const washerCount = weekBookings.filter(b => b.machineType === 'washer').length;
+    const dryerCount = weekBookings.filter(b => b.machineType === 'dryer').length;
 
     return (
       ((machineType === 'washer' && washerCount >= 2) ||
-       (machineType === 'dryer' && dryerCount >= 2)) &&
+        (machineType === 'dryer' && dryerCount >= 2)) &&
       !isSelected
     ) || isBookedElsewhere;
   };
 
   const handleUnbookFromList = (weekKey, id) => {
-    setBookings((prev) => ({
+    setBookings(prev => ({
       ...prev,
-      [weekKey]: prev[weekKey].filter((b) => b.id !== id),
+      [weekKey]: prev[weekKey].filter(b => b.id !== id),
     }));
     const [day, , machine] = id.split('-');
-    setSelectedSlots((prev) => ({ ...prev, [`${day}-${machine}`]: '' }));
+    setSelectedSlots(prev => ({ ...prev, [`${day}-${machine}`]: '' }));
   };
 
-  const calendarDays = Array.from({ length: firstDayOfMonth }, () => null).concat(
-    Array.from({ length: daysInMonth }, (_, i) => i + 1)
-  );
+  const calendarDays = [
+    ...Array(firstDayOfMonth).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  ];
 
   const selectedWeekKey = selectedDay ? getWeekKey(selectedDay.date) : null;
   const weekBookings = bookings[selectedWeekKey] || [];
 
   return (
-    <div className="container mx-auto p-4 flex flex-col min-h-screen">
+    <div className="container mx-auto p-4 flex flex-col min-h-screen bg-gray-100 text-gray-800">
       <LogoHeader />
 
-      <h1 className="heading text-2xl font-bold text-center mb-6">Sevas Online Laundry Booking System</h1>
+      <h1 className="text-3xl font-extrabold text-center my-6">Sevas Online Laundry Booking System</h1>
 
       <CalendarHeader
         currentMonth={currentMonth}
