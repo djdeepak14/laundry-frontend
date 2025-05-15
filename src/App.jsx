@@ -6,7 +6,10 @@ import LaundryBookingPage from './components/LaundryBookingPage';
 import CalendarHeader from './components/CalendarHeader';
 import MachineBookingCard from './components/MachineBookingCard';
 import SelectedDaySchedule from './components/SelectedDaySchedule';
+
 import LogoHeader from './components/LogoHeader';
+
+
 
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -161,6 +164,7 @@ const App = () => {
           }
         />
       </Routes>
+      
     </Router>
   );
 };

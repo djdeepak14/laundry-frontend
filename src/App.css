@@ -265,3 +265,9 @@ h1 {
   width: auto; /* Maintain aspect ratio */
   object-fit: contain; /* Ensure the image fits within the container */
 }
+.logo-header {
+  padding: 10px;
+  text-align: center;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+}
