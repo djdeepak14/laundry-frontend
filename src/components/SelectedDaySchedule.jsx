@@ -1,58 +1,43 @@
+// src/components/SelectedDaySchedule.js
 import React from 'react';
 
 const SelectedDaySchedule = ({
   selectedDay,
-  currentYear,
-  currentMonth,
   machines,
+  timeSlots,
   selectedSlots,
-  setSelectedSlots,
-  bookings,
   toggleBooking,
   isSlotDisabled,
-  timeSlots,
-  selectedWeekKey,
+  weekBookings,
 }) => {
   return (
-    <div className="mt-6">
-      <h3 className="text-lg font-bold mb-2">
-        Schedule for {selectedDay.dayName}, {currentMonth + 1}/{selectedDay.date.getDate()}/{currentYear}
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {machines.map((machine) => (
-          <div key={machine.name} className="p-4 bg-white border rounded">
-            <h4 className="font-semibold mb-2">{machine.name}</h4>
+    <div className="selected-day-schedule">
+      <h2>Schedule for {selectedDay.dayName}, {selectedDay.date.toDateString()}</h2>
+      {machines.map((machine) => (
+        <div key={machine.name} className="machine-schedule">
+          <h3>{machine.name} ({machine.type})</h3>
+          <div className="time-slots-grid">
             {timeSlots.map((slot) => {
-              const id = `${selectedDay.date.getDate()}-${slot}-${machine.name}`;
-              const isDisabled = isSlotDisabled(id, machine.name, machine.type);
-              const isSelected = selectedSlots[`${selectedDay.date.getDate()}-${machine.name}`] === slot;
-
+              const slotId = `${machine.name}-${slot}`;
               return (
-                <button
-                  key={slot}
-                  onClick={() => {
-                    toggleBooking(id, machine.name, machine.type);
-                    setSelectedSlots((prev) => ({
-                      ...prev,
-                      [`${selectedDay.date.getDate()}-${machine.name}`]: isSelected ? '' : slot,
-                    }));
-                  }}
-                  disabled={isDisabled}
-                  className={`w-full p-2 mb-2 text-left rounded ${
-                    isSelected
-                      ? 'bg-blue-500 text-white'
-                      : isDisabled
-                      ? 'bg-gray-300 cursor-not-allowed'
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
-                >
-                  {slot}
-                </button>
+                <div key={slotId} className="time-slot-item">
+                  <span className="time-slot-label">{slot}</span>
+                  <button
+                    onClick={() => {
+                      console.log('Calling toggleBooking with:', slotId, machine.name, machine.type);
+                      toggleBooking(slotId, machine.name, machine.type);
+                    }}
+                    disabled={isSlotDisabled(slotId)}
+                    className={`time-slot-button ${selectedSlots[slotId] ? 'selected' : ''}`}
+                  >
+                    {selectedSlots[slotId] ? 'Booked' : 'Book'}
+                  </button>
+                </div>
               );
             })}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 };

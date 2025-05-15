@@ -1,3 +1,4 @@
+// components/CalendarGrid.js
 import React from 'react';
 
 const CalendarGrid = ({
@@ -10,10 +11,13 @@ const CalendarGrid = ({
   onDayClick,
 }) => {
   return (
-    <div className="grid grid-cols-7 gap-1 text-center">
-      {weekdays.map((day) => (
-        <div key={day} className="font-bold p-2">
-          {day}
+    <div className="calendar-grid">
+      {weekdays.map((weekday, index) => (
+        <div
+          key={`weekday-${index}`}
+          className="weekday-header"
+        >
+          {weekday}
         </div>
       ))}
       {calendarDays.map((day, index) => {
@@ -23,7 +27,6 @@ const CalendarGrid = ({
           today.getMonth() === currentMonth &&
           today.getFullYear() === currentYear;
         const isSelected =
-          day &&
           selectedDay &&
           selectedDay.date.getDate() === day &&
           selectedDay.date.getMonth() === currentMonth &&
@@ -31,17 +34,9 @@ const CalendarGrid = ({
 
         return (
           <div
-            key={index}
+            key={`day-${index}`}
+            className={`day-cell ${day ? 'active-day' : ''} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
             onClick={() => day && onDayClick(day)}
-            className={`p-2 border ${
-              day
-                ? isSelected
-                  ? 'bg-blue-500 text-white'
-                  : isToday
-                  ? 'bg-yellow-200'
-                  : 'hover:bg-gray-100'
-                : 'bg-gray-50'
-            } cursor-pointer`}
           >
             {day || ''}
           </div>
