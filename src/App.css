@@ -252,3 +252,16 @@ h1 {
   cursor: pointer;
   border: none;
 }
+
+/* src/App.css (update the .logo-container img rule) */
+.logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.logo-container img {
+  max-height: 5rem; /* Use max-height to prevent stretching */
+  width: auto; /* Maintain aspect ratio */
+  object-fit: contain; /* Ensure the image fits within the container */
+}
