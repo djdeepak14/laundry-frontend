@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import './App.css';
+
 import HomePage from './components/HomePage';
 import LaundryBookingPage from './components/LaundryBookingPage';
-import CalendarHeader from './components/CalendarHeader';
-import MachineBookingCard from './components/MachineBookingCard';
-import SelectedDaySchedule from './components/SelectedDaySchedule';
-
-import LogoHeader from './components/LogoHeader';
-
-
+import LoginForm from './components/LoginForm';
 
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -33,7 +28,7 @@ const getWeekNumber = (date) => {
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 };
 
-const App = () => {
+const AppRoutes = () => {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -41,10 +36,18 @@ const App = () => {
   const [bookings, setBookings] = useState(() => JSON.parse(localStorage.getItem('sevasBookings') || '{}'));
   const [selectedSlots, setSelectedSlots] = useState(() => JSON.parse(localStorage.getItem('sevasSelectedSlots') || '{}'));
 
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // new state for login status
+  const navigate = useNavigate();
+
   useEffect(() => {
     localStorage.setItem('sevasBookings', JSON.stringify(bookings));
     localStorage.setItem('sevasSelectedSlots', JSON.stringify(selectedSlots));
   }, [bookings, selectedSlots]);
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+    navigate("/"); // redirect to homepage after login
+  };
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
@@ -108,10 +111,10 @@ const App = () => {
       }
       setBookings(prev => ({
         ...prev,
-        [weekKey]: [...weekBookings, { 
-          id: slotId, 
-          machine, 
-          machineType, 
+        [weekKey]: [...weekBookings, {
+          id: slotId,
+          machine,
+          machineType,
           dayName: selectedDay.dayName,
           date: selectedDay.date
         }]
@@ -124,12 +127,14 @@ const App = () => {
   const selectedWeekKey = selectedDay ? getWeekKey(selectedDay.date) : null;
   const weekBookings = bookings[selectedWeekKey] || [];
 
+  // If not logged in and trying to access "/", redirect to /login
+  // Also redirect from "/" to "/home" after login
   return (
-    <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
+    <Routes>
+      <Route
+        path="/"
+        element={
+          isLoggedIn ? (
             <HomePage
               today={today}
               currentMonth={currentMonth}
@@ -147,11 +152,15 @@ const App = () => {
               months={months}
               weekdays={weekdays}
             />
-          }
-        />
-        <Route
-          path="/laundry"
-          element={
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/laundry"
+        element={
+          isLoggedIn ? (
             <LaundryBookingPage
               selectedDay={selectedDay}
               machines={machines}
@@ -161,12 +170,29 @@ const App = () => {
               isSlotDisabled={isSlotDisabled}
               weekBookings={weekBookings}
             />
-          }
-        />
-      </Routes>
-      
-    </Router>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          isLoggedIn ? (
+            <Navigate to="/" replace />
+          ) : (
+            <LoginForm onLoginSuccess={handleLoginSuccess} />
+          )
+        }
+      />
+    </Routes>
   );
 };
+
+const App = () => (
+  <Router>
+    <AppRoutes />
+  </Router>
+);
 
 export default App;

@@ -39,12 +39,18 @@ const HomePage = ({
   return (
     <div className="container">
       <div className="home-header">
-        <button onClick={() => navigate('/')} className="home-button">
-          Home
-        </button>
-        <button onClick={() => navigate('/laundry')} className="home-button">
-          Book Laundry
-        </button>
+      <div className="home-header">
+  <button onClick={() => navigate('/')} className="home-button">
+    Home
+  </button>
+  <button onClick={() => navigate('/laundry')} className="home-button">
+    Book Laundry
+  </button>
+  <button onClick={() => navigate('/login')} className="home-button">
+    Login
+  </button>
+</div>
+
       </div>
       <LogoHeader />
       <h1>{months[currentMonth]} {currentYear}</h1>
