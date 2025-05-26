@@ -1,12 +1,11 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import './App.css';
 
 import HomePage from './components/HomePage';
 import LaundryBookingPage from './components/LaundryBookingPage';
 import LoginForm from './components/LoginForm';
-
 
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -19,6 +18,11 @@ const machines = [
   { name: "Dryer 1", type: "dryer" },
   { name: "Dryer 2", type: "dryer" },
 ];
+
+const MAX_WEEKLY_BOOKINGS = {
+  washer: 2,
+  dryer: 2,
+};
 
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
@@ -47,9 +51,8 @@ const AppRoutes = () => {
 
     Object.entries(bookings).forEach(([weekKey, weekBookings]) => {
       updatedBookings[weekKey] = weekBookings.filter(booking => {
-        const bookingTime = new Date(booking.timestamp);
-        const diffInHours = (now - bookingTime) / (1000 * 60 * 60);
-        if (diffInHours < 1) {
+        const bookingDate = new Date(booking.date);
+        if (bookingDate >= now) {
           updatedSelectedSlots[booking.id] = true;
           return true;
         }
@@ -78,7 +81,9 @@ const AppRoutes = () => {
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
-  const timeSlots = Array.from({ length: 14 }, (_, i) => `${i + 8}:00 - ${i + 9}:00`);
+  const timeSlots = useMemo(() =>
+    Array.from({ length: 14 }, (_, i) => `${i + 8}:00 - ${i + 9}:00`)
+  , []);
 
   const handleMonthChange = (direction) => {
     let newMonth = currentMonth + direction;
@@ -93,6 +98,7 @@ const AppRoutes = () => {
   const handleDayClick = (day) => {
     const date = new Date(currentYear, currentMonth, day);
     setSelectedDay({ date, dayName: weekdays[date.getDay()] });
+    navigate("/laundry");
   };
 
   const getWeekKey = (date) => {
@@ -103,9 +109,9 @@ const AppRoutes = () => {
 
   const getWeekBookingStats = (weekKey) => {
     const weekBookings = bookings[weekKey] || [];
-    const totalBookings = weekBookings.length;
+    const washerCount = weekBookings.filter(b => b.machineType === 'washer').length;
     const dryerCount = weekBookings.filter(b => b.machineType === 'dryer').length;
-    return { totalBookings, dryerCount };
+    return { totalBookings: weekBookings.length, washerCount, dryerCount };
   };
 
   const toggleBooking = (slotId, machine, machineType) => {
@@ -113,28 +119,30 @@ const AppRoutes = () => {
 
     const weekKey = getWeekKey(selectedDay.date);
     const weekBookings = bookings[weekKey] || [];
-    const isBooked = weekBookings.some(b => b.id === slotId);
-    const { totalBookings, dryerCount } = getWeekBookingStats(weekKey);
+    const uniqueSlotId = `${selectedDay.date.toDateString()}_${slotId}`;
+    const isBooked = weekBookings.some(b => b.id === uniqueSlotId);
+    const { washerCount, dryerCount } = getWeekBookingStats(weekKey);
 
     if (isBooked) {
       setBookings(prev => ({
         ...prev,
-        [weekKey]: prev[weekKey].filter(b => b.id !== slotId)
+        [weekKey]: prev[weekKey].filter(b => b.id !== uniqueSlotId)
       }));
-      setSelectedSlots(prev => ({ ...prev, [slotId]: false }));
+      setSelectedSlots(prev => ({ ...prev, [uniqueSlotId]: false }));
     } else {
-      if (totalBookings >= 2) {
-        alert("You can only book a maximum of 2 machines per week.");
+      if (machineType === 'washer' && washerCount >= MAX_WEEKLY_BOOKINGS.washer) {
+        alert("You can only book a maximum of 2 washers per week.");
         return;
       }
-      if (machineType === 'dryer' && dryerCount >= 2) {
+      if (machineType === 'dryer' && dryerCount >= MAX_WEEKLY_BOOKINGS.dryer) {
         alert("You can only book a maximum of 2 dryers per week.");
         return;
       }
+
       setBookings(prev => ({
         ...prev,
         [weekKey]: [...weekBookings, {
-          id: slotId,
+          id: uniqueSlotId,
           machine,
           machineType,
           dayName: selectedDay.dayName,
@@ -142,74 +150,76 @@ const AppRoutes = () => {
           timestamp: new Date().toISOString()
         }]
       }));
-      setSelectedSlots(prev => ({ ...prev, [slotId]: true }));
+      setSelectedSlots(prev => ({ ...prev, [uniqueSlotId]: true }));
     }
   };
 
-  const isSlotDisabled = (slotId) => Boolean(selectedSlots[slotId]);
+  const isSlotDisabled = (slotId) => {
+    if (!selectedDay) return false;
+    const uniqueSlotId = `${selectedDay.date.toDateString()}_${slotId}`;
+    return Boolean(selectedSlots[uniqueSlotId]);
+  };
+
   const selectedWeekKey = selectedDay ? getWeekKey(selectedDay.date) : null;
   const weekBookings = bookings[selectedWeekKey] || [];
 
   return (
-    <>
-
-      <Routes>
-        <Route
-          path="/"
-          element={
-            isLoggedIn ? (
-              <HomePage
-                today={today}
-                currentMonth={currentMonth}
-                currentYear={currentYear}
-                setCurrentMonth={setCurrentMonth}
-                setCurrentYear={setCurrentYear}
-                selectedDay={selectedDay}
-                setSelectedDay={setSelectedDay}
-                bookings={bookings}
-                selectedWeekKey={selectedWeekKey}
-                weekBookings={weekBookings}
-                handleDayClick={handleDayClick}
-                handleMonthChange={handleMonthChange}
-                toggleBooking={toggleBooking}
-                months={months}
-                weekdays={weekdays}
-              />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/laundry"
-          element={
-            isLoggedIn ? (
-              <LaundryBookingPage
-                selectedDay={selectedDay}
-                machines={machines}
-                timeSlots={timeSlots}
-                selectedSlots={selectedSlots}
-                toggleBooking={toggleBooking}
-                isSlotDisabled={isSlotDisabled}
-                weekBookings={weekBookings}
-              />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            isLoggedIn ? (
-              <Navigate to="/" replace />
-            ) : (
-              <LoginForm onLoginSuccess={handleLoginSuccess} />
-            )
-          }
-        />
-      </Routes>
-    </>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          isLoggedIn ? (
+            <HomePage
+              today={today}
+              currentMonth={currentMonth}
+              currentYear={currentYear}
+              setCurrentMonth={setCurrentMonth}
+              setCurrentYear={setCurrentYear}
+              selectedDay={selectedDay}
+              setSelectedDay={setSelectedDay}
+              bookings={bookings}
+              selectedWeekKey={selectedWeekKey}
+              weekBookings={weekBookings}
+              handleDayClick={handleDayClick}
+              handleMonthChange={handleMonthChange}
+              toggleBooking={toggleBooking}
+              months={months}
+              weekdays={weekdays}
+            />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/laundry"
+        element={
+          isLoggedIn ? (
+            <LaundryBookingPage
+              selectedDay={selectedDay}
+              machines={machines}
+              timeSlots={timeSlots}
+              selectedSlots={selectedSlots}
+              toggleBooking={toggleBooking}
+              isSlotDisabled={isSlotDisabled}
+              weekBookings={weekBookings}
+            />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          isLoggedIn ? (
+            <Navigate to="/" replace />
+          ) : (
+            <LoginForm onLoginSuccess={handleLoginSuccess} />
+          )
+        }
+      />
+    </Routes>
   );
 };
 
