@@ -35,7 +35,16 @@ body {
 }
 
 .logo-container img {
-  height: 5rem;
+  max-height: 5rem; /* Use max-height to prevent stretching */
+  width: auto; /* Maintain aspect ratio */
+  object-fit: contain; /* Ensure the image fits within the container */
+}
+
+.logo-header {
+  padding: 10px;
+  text-align: center;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
 }
 
 /* Heading */
@@ -253,24 +262,7 @@ h1 {
   border: none;
 }
 
-/* src/App.css (update the .logo-container img rule) */
-.logo-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 1rem;
-}
-
-.logo-container img {
-  max-height: 5rem; /* Use max-height to prevent stretching */
-  width: auto; /* Maintain aspect ratio */
-  object-fit: contain; /* Ensure the image fits within the container */
-}
-.logo-header {
-  padding: 10px;
-  text-align: center;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #ddd;
-}
+/* Form Styles */
 form {
   display: flex;
   flex-direction: column;
@@ -298,6 +290,8 @@ button {
 button:hover {
   background-color: #005fa3;
 }
+
+/* Login Container */
 .login-container {
   max-width: 300px;
   margin: 100px auto;
@@ -305,11 +299,6 @@ button:hover {
   border: 1px solid #ddd;
   border-radius: 10px;
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
-}
-
-.login-container form {
-  display: flex;
-  flex-direction: column;
 }
 
 .login-container input {
@@ -325,4 +314,3 @@ button:hover {
   border: none;
   cursor: pointer;
 }
-

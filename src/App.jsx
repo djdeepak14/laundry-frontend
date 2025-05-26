@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import './App.css';
@@ -5,6 +6,7 @@ import './App.css';
 import HomePage from './components/HomePage';
 import LaundryBookingPage from './components/LaundryBookingPage';
 import LoginForm from './components/LoginForm';
+
 
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -35,9 +37,29 @@ const AppRoutes = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [bookings, setBookings] = useState(() => JSON.parse(localStorage.getItem('sevasBookings') || '{}'));
   const [selectedSlots, setSelectedSlots] = useState(() => JSON.parse(localStorage.getItem('sevasSelectedSlots') || '{}'));
-
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // new state for login status
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const now = new Date();
+    const updatedBookings = {};
+    const updatedSelectedSlots = {};
+
+    Object.entries(bookings).forEach(([weekKey, weekBookings]) => {
+      updatedBookings[weekKey] = weekBookings.filter(booking => {
+        const bookingTime = new Date(booking.timestamp);
+        const diffInHours = (now - bookingTime) / (1000 * 60 * 60);
+        if (diffInHours < 1) {
+          updatedSelectedSlots[booking.id] = true;
+          return true;
+        }
+        return false;
+      });
+    });
+
+    setBookings(updatedBookings);
+    setSelectedSlots(updatedSelectedSlots);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('sevasBookings', JSON.stringify(bookings));
@@ -46,7 +68,7 @@ const AppRoutes = () => {
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
-    navigate("/"); // redirect to homepage after login
+    navigate("/");
   };
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
@@ -116,7 +138,8 @@ const AppRoutes = () => {
           machine,
           machineType,
           dayName: selectedDay.dayName,
-          date: selectedDay.date
+          date: selectedDay.date,
+          timestamp: new Date().toISOString()
         }]
       }));
       setSelectedSlots(prev => ({ ...prev, [slotId]: true }));
@@ -127,65 +150,66 @@ const AppRoutes = () => {
   const selectedWeekKey = selectedDay ? getWeekKey(selectedDay.date) : null;
   const weekBookings = bookings[selectedWeekKey] || [];
 
-  // If not logged in and trying to access "/", redirect to /login
-  // Also redirect from "/" to "/home" after login
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          isLoggedIn ? (
-            <HomePage
-              today={today}
-              currentMonth={currentMonth}
-              currentYear={currentYear}
-              setCurrentMonth={setCurrentMonth}
-              setCurrentYear={setCurrentYear}
-              selectedDay={selectedDay}
-              setSelectedDay={setSelectedDay}
-              bookings={bookings}
-              selectedWeekKey={selectedWeekKey}
-              weekBookings={weekBookings}
-              handleDayClick={handleDayClick}
-              handleMonthChange={handleMonthChange}
-              toggleBooking={toggleBooking}
-              months={months}
-              weekdays={weekdays}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      <Route
-        path="/laundry"
-        element={
-          isLoggedIn ? (
-            <LaundryBookingPage
-              selectedDay={selectedDay}
-              machines={machines}
-              timeSlots={timeSlots}
-              selectedSlots={selectedSlots}
-              toggleBooking={toggleBooking}
-              isSlotDisabled={isSlotDisabled}
-              weekBookings={weekBookings}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          isLoggedIn ? (
-            <Navigate to="/" replace />
-          ) : (
-            <LoginForm onLoginSuccess={handleLoginSuccess} />
-          )
-        }
-      />
-    </Routes>
+    <>
+
+      <Routes>
+        <Route
+          path="/"
+          element={
+            isLoggedIn ? (
+              <HomePage
+                today={today}
+                currentMonth={currentMonth}
+                currentYear={currentYear}
+                setCurrentMonth={setCurrentMonth}
+                setCurrentYear={setCurrentYear}
+                selectedDay={selectedDay}
+                setSelectedDay={setSelectedDay}
+                bookings={bookings}
+                selectedWeekKey={selectedWeekKey}
+                weekBookings={weekBookings}
+                handleDayClick={handleDayClick}
+                handleMonthChange={handleMonthChange}
+                toggleBooking={toggleBooking}
+                months={months}
+                weekdays={weekdays}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/laundry"
+          element={
+            isLoggedIn ? (
+              <LaundryBookingPage
+                selectedDay={selectedDay}
+                machines={machines}
+                timeSlots={timeSlots}
+                selectedSlots={selectedSlots}
+                toggleBooking={toggleBooking}
+                isSlotDisabled={isSlotDisabled}
+                weekBookings={weekBookings}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            isLoggedIn ? (
+              <Navigate to="/" replace />
+            ) : (
+              <LoginForm onLoginSuccess={handleLoginSuccess} />
+            )
+          }
+        />
+      </Routes>
+    </>
   );
 };
 

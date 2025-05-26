@@ -11,7 +11,7 @@ const LoginForm = ({ onLoginSuccess }) => {
     e.preventDefault();
     setError('');
 
-    if (username === 'Nepal' && password === 'Nepal') {
+    if (username === '1' && password === '1') {
       onLoginSuccess();
     } else {
       setError('Invalid username or password');

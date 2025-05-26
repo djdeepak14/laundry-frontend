@@ -2,7 +2,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import SelectedDaySchedule from './SelectedDaySchedule';
-import LogoHeader from './LogoHeader';
 
 const LaundryBookingPage = ({
   selectedDay,
@@ -23,7 +22,6 @@ const LaundryBookingPage = ({
         </button>
         <h1>Laundry Booking</h1>
       </div>
-      <LogoHeader />
       {selectedDay ? (
         <SelectedDaySchedule
           selectedDay={selectedDay}
