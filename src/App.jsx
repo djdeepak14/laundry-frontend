@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import './App.css';
@@ -24,8 +23,6 @@ const MAX_WEEKLY_BOOKINGS = {
   dryer: 2,
 };
 
-const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 const getWeekNumber = (date) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -38,11 +35,27 @@ const AppRoutes = () => {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  // selectedDay is an object: { date: Date, day: number, dayName: string }
   const [selectedDay, setSelectedDay] = useState(null);
   const [bookings, setBookings] = useState(() => JSON.parse(localStorage.getItem('sevasBookings') || '{}'));
   const [selectedSlots, setSelectedSlots] = useState(() => JSON.parse(localStorage.getItem('sevasSelectedSlots') || '{}'));
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
+
+  // Helper: get day number from selectedDay object or null
+  const getSelectedDayNumber = (selDay) => {
+    if (!selDay) return null;
+    if (typeof selDay === 'number') return selDay;
+    if (selDay.day) return selDay.day;
+    return null;
+  };
+
+  // Use selectedDay or default today
+  const effectiveSelectedDay = selectedDay || {
+    date: today,
+    day: today.getDate(),
+    dayName: weekdays[today.getDay()],
+  };
 
   useEffect(() => {
     const now = new Date();
@@ -50,14 +63,17 @@ const AppRoutes = () => {
     const updatedSelectedSlots = {};
 
     Object.entries(bookings).forEach(([weekKey, weekBookings]) => {
-      updatedBookings[weekKey] = weekBookings.filter(booking => {
+      const validBookings = weekBookings.filter(booking => {
         const bookingDate = new Date(booking.date);
-        if (bookingDate >= now) {
-          updatedSelectedSlots[booking.id] = true;
-          return true;
-        }
-        return false;
+        return bookingDate >= now;
       });
+
+      if (validBookings.length > 0) {
+        updatedBookings[weekKey] = validBookings;
+        validBookings.forEach(booking => {
+          updatedSelectedSlots[booking.id] = true;
+        });
+      }
     });
 
     setBookings(updatedBookings);
@@ -74,22 +90,16 @@ const AppRoutes = () => {
     navigate("/");
   };
 
-  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-  const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
-  const calendarCells = [
-    ...Array(firstDayOfMonth).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-
-  const timeSlots = useMemo(() =>
-    Array.from({ length: 14 }, (_, i) => `${i + 8}:00 - ${i + 9}:00`)
-  , []);
-
   const handleMonthChange = (direction) => {
     let newMonth = currentMonth + direction;
     let newYear = currentYear;
-    if (newMonth < 0) { newMonth = 11; newYear -= 1; }
-    else if (newMonth > 11) { newMonth = 0; newYear += 1; }
+    if (newMonth < 0) {
+      newMonth = 11;
+      newYear -= 1;
+    } else if (newMonth > 11) {
+      newMonth = 0;
+      newYear += 1;
+    }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
     setSelectedDay(null);
@@ -97,7 +107,7 @@ const AppRoutes = () => {
 
   const handleDayClick = (day) => {
     const date = new Date(currentYear, currentMonth, day);
-    setSelectedDay({ date, dayName: weekdays[date.getDay()] });
+    setSelectedDay({ date, day, dayName: weekdays[date.getDay()] });
     navigate("/laundry");
   };
 
@@ -115,11 +125,11 @@ const AppRoutes = () => {
   };
 
   const toggleBooking = (slotId, machine, machineType) => {
-    if (!selectedDay) return;
+    if (!effectiveSelectedDay) return;
 
-    const weekKey = getWeekKey(selectedDay.date);
+    const weekKey = getWeekKey(effectiveSelectedDay.date);
     const weekBookings = bookings[weekKey] || [];
-    const uniqueSlotId = `${selectedDay.date.toDateString()}_${slotId}`;
+    const uniqueSlotId = `${effectiveSelectedDay.date.toDateString()}_${slotId}`;
     const isBooked = weekBookings.some(b => b.id === uniqueSlotId);
     const { washerCount, dryerCount } = getWeekBookingStats(weekKey);
 
@@ -128,7 +138,11 @@ const AppRoutes = () => {
         ...prev,
         [weekKey]: prev[weekKey].filter(b => b.id !== uniqueSlotId)
       }));
-      setSelectedSlots(prev => ({ ...prev, [uniqueSlotId]: false }));
+      setSelectedSlots(prev => {
+        const updated = { ...prev };
+        delete updated[uniqueSlotId];
+        return updated;
+      });
     } else {
       if (machineType === 'washer' && washerCount >= MAX_WEEKLY_BOOKINGS.washer) {
         alert("You can only book a maximum of 2 washers per week.");
@@ -145,23 +159,40 @@ const AppRoutes = () => {
           id: uniqueSlotId,
           machine,
           machineType,
-          dayName: selectedDay.dayName,
-          date: selectedDay.date,
+          dayName: effectiveSelectedDay.dayName,
+          date: effectiveSelectedDay.date,
           timestamp: new Date().toISOString()
         }]
       }));
+
       setSelectedSlots(prev => ({ ...prev, [uniqueSlotId]: true }));
     }
   };
 
+  const handleUnbook = (weekKey, bookingId) => {
+    setBookings(prev => ({
+      ...prev,
+      [weekKey]: prev[weekKey]?.filter(b => b.id !== bookingId) || []
+    }));
+
+    setSelectedSlots(prev => {
+      const updated = { ...prev };
+      delete updated[bookingId];
+      return updated;
+    });
+  };
+
   const isSlotDisabled = (slotId) => {
-    if (!selectedDay) return false;
-    const uniqueSlotId = `${selectedDay.date.toDateString()}_${slotId}`;
+    const uniqueSlotId = `${effectiveSelectedDay.date.toDateString()}_${slotId}`;
     return Boolean(selectedSlots[uniqueSlotId]);
   };
 
-  const selectedWeekKey = selectedDay ? getWeekKey(selectedDay.date) : null;
+  const selectedWeekKey = getWeekKey(effectiveSelectedDay.date);
   const weekBookings = bookings[selectedWeekKey] || [];
+
+  const timeSlots = useMemo(() =>
+    Array.from({ length: 14 }, (_, i) => `${i + 8}:00 - ${i + 9}:00`)
+  , []);
 
   return (
     <Routes>
@@ -175,7 +206,7 @@ const AppRoutes = () => {
               currentYear={currentYear}
               setCurrentMonth={setCurrentMonth}
               setCurrentYear={setCurrentYear}
-              selectedDay={selectedDay}
+              selectedDay={getSelectedDayNumber(effectiveSelectedDay)}  // Pass day number here
               setSelectedDay={setSelectedDay}
               bookings={bookings}
               selectedWeekKey={selectedWeekKey}
@@ -183,6 +214,7 @@ const AppRoutes = () => {
               handleDayClick={handleDayClick}
               handleMonthChange={handleMonthChange}
               toggleBooking={toggleBooking}
+              handleUnbook={handleUnbook}
               months={months}
               weekdays={weekdays}
             />
@@ -196,13 +228,15 @@ const AppRoutes = () => {
         element={
           isLoggedIn ? (
             <LaundryBookingPage
-              selectedDay={selectedDay}
+              selectedDay={effectiveSelectedDay}
               machines={machines}
               timeSlots={timeSlots}
               selectedSlots={selectedSlots}
               toggleBooking={toggleBooking}
               isSlotDisabled={isSlotDisabled}
               weekBookings={weekBookings}
+              handleUnbook={handleUnbook}
+              selectedWeekKey={selectedWeekKey}
             />
           ) : (
             <Navigate to="/login" replace />

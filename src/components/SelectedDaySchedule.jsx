@@ -1,4 +1,3 @@
-// src/components/SelectedDaySchedule.js
 import React from 'react';
 
 const SelectedDaySchedule = ({
@@ -8,11 +7,10 @@ const SelectedDaySchedule = ({
   selectedSlots,
   toggleBooking,
   isSlotDisabled,
-  weekBookings,
 }) => {
   return (
     <div className="selected-day-schedule">
-      <h2>Schedule for {selectedDay.dayName}, {selectedDay.date.toDateString()}</h2>
+      <h2>Schedule for {selectedDay.dayName}, {new Date(selectedDay.date).toDateString()}</h2>
       {machines.map((machine) => (
         <div key={machine.name} className="machine-schedule">
           <h3>{machine.name} ({machine.type})</h3>

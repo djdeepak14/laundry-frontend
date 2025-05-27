@@ -1,11 +1,10 @@
-// components/CalendarGrid.js
 import React from 'react';
 
 const CalendarGrid = ({
   weekdays,
   calendarDays,
   today,
-  selectedDay,
+  selectedDay,  
   currentMonth,
   currentYear,
   onDayClick,
@@ -26,11 +25,9 @@ const CalendarGrid = ({
           today.getDate() === day &&
           today.getMonth() === currentMonth &&
           today.getFullYear() === currentYear;
-        const isSelected =
-          selectedDay &&
-          selectedDay.date.getDate() === day &&
-          selectedDay.date.getMonth() === currentMonth &&
-          selectedDay.date.getFullYear() === currentYear;
+
+        // selectedDay is just a number for the day of the month
+        const isSelected = selectedDay === day;
 
         return (
           <div

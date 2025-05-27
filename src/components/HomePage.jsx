@@ -1,4 +1,3 @@
-// src/components/HomePage.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import CalendarGrid from './CalendarGrid';
@@ -20,10 +19,11 @@ const HomePage = ({
   setSelectedDay,
   bookings,
   selectedWeekKey,
-  weekBookings,
+  weekBookings = [],
   handleDayClick,
   handleMonthChange,
   toggleBooking,
+  handleUnbook,
   months,
   weekdays,
 }) => {
@@ -39,22 +39,14 @@ const HomePage = ({
   return (
     <div className="container">
       <div className="home-header">
-      <div className="home-header">
-  <button onClick={() => navigate('/')} className="home-button">
-    Home
-  </button>
-  <button onClick={() => navigate('/laundry')} className="home-button">
-    Book Laundry
-  </button>
-  <button onClick={() => navigate('/login')} className="home-button">
-    Login
-  </button>
-</div>
-
+        <button onClick={() => navigate('/')} className="home-button">Home</button>
+        <button onClick={() => navigate('/laundry')} className="home-button">Book Laundry</button>
+        <button onClick={() => navigate('/login')} className="home-button">Login</button>
       </div>
+
       <LogoHeader />
       <h1>{months[currentMonth]} {currentYear}</h1>
-      
+
       <CalendarHeader
         currentMonth={currentMonth}
         currentYear={currentYear}
@@ -66,11 +58,11 @@ const HomePage = ({
         weekdays={weekdays}
         calendarDays={calendarCells}
         today={today}
-        selectedDay={selectedDay}
+        selectedDay={selectedDay}  // selectedDay is a number like 15
         currentMonth={currentMonth}
         currentYear={currentYear}
         onDayClick={(day) => {
-          handleDayClick(day);
+          handleDayClick(day);     // day is a number like 15
           navigate('/laundry');
         }}
       />
@@ -81,7 +73,7 @@ const HomePage = ({
             <MachineBookingCard
               key={b.id}
               booking={b}
-              onUnbook={() => toggleBooking(b.id, b.machine, b.machineType)}
+              onUnbook={() => handleUnbook(selectedWeekKey, b.id)}
             />
           ))}
         </div>
@@ -90,7 +82,7 @@ const HomePage = ({
       <BookedMachinesList
         weekBookings={weekBookings}
         selectedWeekKey={selectedWeekKey}
-        handleUnbook={(wk, id) => toggleBooking(id)}
+        handleUnbook={handleUnbook}
       />
     </div>
   );
