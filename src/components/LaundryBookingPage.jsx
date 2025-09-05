@@ -23,13 +23,19 @@ const LaundryBookingPage = ({
 
   return (
     <div className="container">
-      {/* Home Button */}
-      <div className="home-header">
-        <button className="home-button" onClick={() => navigate('/')}>Home</button>
-      </div>
-
       {/* Page Heading */}
       <h1>Schedule for {selectedDay.dayName}, {selectedDay.date.toDateString()}</h1>
+
+      {/* Buttons below date */}
+      <div className="action-buttons">
+        <button className="home-button" onClick={() => navigate('/')}>Home</button>
+        <button 
+          className="book-laundry-button"
+          onClick={() => alert("Booking functionality here!")}
+        >
+          Book Laundry
+        </button>
+      </div>
 
       {/* Machine Schedules */}
       {machines.map(machine => (

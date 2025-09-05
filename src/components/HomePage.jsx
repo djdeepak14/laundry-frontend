@@ -38,14 +38,19 @@ const HomePage = ({
 
   return (
     <div className="container">
-      <div className="home-header">
-        <button onClick={() => navigate('/')} className="home-button">Home</button>
-        <button onClick={() => navigate('/laundry')} className="home-button">Book Laundry</button>
+      {/* Logo */}
+      <LogoHeader />
+
+      {/* Buttons above the calendar */}
+      <div className="home-laundry-buttons">
+        <button className="home-button" onClick={() => navigate('/')}>Home</button>
+        <button className="book-laundry-button" onClick={() => navigate('/laundry')}>Book Laundry</button>
       </div>
 
-      <LogoHeader />
+      {/* Month Heading */}
       <h1>{months[currentMonth]} {currentYear}</h1>
 
+      {/* Month Navigation */}
       <CalendarHeader
         currentMonth={currentMonth}
         currentYear={currentYear}
@@ -53,6 +58,7 @@ const HomePage = ({
         onChange={handleMonthChange}
       />
 
+      {/* Calendar Grid */}
       <CalendarGrid
         weekdays={weekdays}
         calendarDays={calendarCells}
@@ -66,8 +72,9 @@ const HomePage = ({
         }}
       />
 
+      {/* Week Bookings Cards */}
       {weekBookings.length > 0 && (
-        <div>
+        <div className="week-bookings-cards">
           {weekBookings.map((b) => (
             <MachineBookingCard
               key={b.id}
@@ -78,6 +85,7 @@ const HomePage = ({
         </div>
       )}
 
+      {/* Booked Machines List */}
       <BookedMachinesList
         weekBookings={weekBookings}
         selectedWeekKey={selectedWeekKey}
