@@ -2,19 +2,21 @@ import React from 'react';
 
 const CalendarHeader = ({ currentMonth, currentYear, months, onChange }) => {
   return (
-    <div className="flex justify-between items-center mb-4">
+    <div className="calendar-header-container">
       <button
+        className="nav-button"
         onClick={() => onChange(-1)}
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
       >
         Previous
       </button>
-      <h2 className="text-xl font-semibold">
+
+      <div className="calendar-month-year">
         {months[currentMonth]} {currentYear}
-      </h2>
+      </div>
+
       <button
+        className="nav-button"
         onClick={() => onChange(1)}
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
       >
         Next
       </button>

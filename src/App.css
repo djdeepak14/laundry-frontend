@@ -23,48 +23,42 @@ body {
   background-color: #f3f4f6;
 }
 
-/* Logo */
-.logo-container {
-  display: flex;
-  justify-content: center;
+/* Landing Center (Logo + Title + Date/Time) */
+.landing-center {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.landing-logo {
+  max-width: 150px;
+  height: auto;
   margin-bottom: 1rem;
 }
 
-.logo-container img {
-  max-height: 5rem;
-  width: auto;
-  object-fit: contain;
-}
-
-.logo-header {
-  padding: 10px;
-  text-align: center;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #ddd;
-}
-
-/* Headings */
-h1 {
-  font-size: 2.25rem;
-  font-weight: 800;
-  text-align: center;
-  margin: 1rem 0;
+.app-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
   color: #1f2937;
 }
 
-h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-}
-
-h3 {
+.current-date-time {
   font-size: 1.25rem;
   font-weight: 600;
-  margin: 0.5rem 0;
+  color: #374151;
 }
 
-/* Center Home + Book Laundry buttons */
+.current-date-time .date {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.current-date-time .time {
+  font-size: 1rem;
+  color: #4b5563;
+}
+
+/* Home + Book Laundry Buttons Centered */
 .home-laundry-buttons {
   display: flex;
   justify-content: center;
@@ -98,6 +92,80 @@ h3 {
 
 .book-laundry-button:hover {
   background-color: #16a34a;
+}
+
+/* Calendar Header (Month + Prev/Next) Centered */
+.calendar-header-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.calendar-header-container h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  min-width: 200px;
+  text-align: center;
+}
+
+.nav-button {
+  padding: 0.5rem 1rem;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.nav-button:hover {
+  background-color: #1d4ed8;
+}
+
+/* Calendar Grid */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.weekday-header {
+  background-color: #e5e7eb;
+  font-weight: bold;
+  font-size: 0.75rem;
+  padding: 0.25rem;
+  text-align: center;
+  border-radius: 0.25rem;
+}
+
+.day-cell {
+  background-color: #ffffff;
+  border-radius: 0.25rem;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.875rem;
+  padding: 0.25rem;
+  cursor: pointer;
+}
+
+.day-cell:hover {
+  background-color: #e5e7eb;
+}
+
+.day-cell.today {
+  border: 2px solid #2563eb;
+}
+
+.day-cell.selected {
+  background-color: #2563eb;
+  color: #ffffff;
 }
 
 /* Machine Schedules */
@@ -198,50 +266,6 @@ h3 {
 
 .booked-list button:hover {
   background-color: #dc2626;
-}
-
-/* Calendar Grid */
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.25rem;
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.weekday-header {
-  background-color: #e5e7eb;
-  font-weight: bold;
-  font-size: 0.75rem;
-  padding: 0.25rem;
-  text-align: center;
-  border-radius: 0.25rem;
-}
-
-.day-cell {
-  background-color: #ffffff;
-  border-radius: 0.25rem;
-  aspect-ratio: 1 / 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 0.875rem;
-  padding: 0.25rem;
-  cursor: pointer;
-}
-
-.day-cell:hover {
-  background-color: #e5e7eb;
-}
-
-.day-cell.today {
-  border: 2px solid #2563eb;
-}
-
-.day-cell.selected {
-  background-color: #2563eb;
-  color: #ffffff;
 }
 
 /* Forms */
