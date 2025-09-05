@@ -41,7 +41,6 @@ const HomePage = ({
       <div className="home-header">
         <button onClick={() => navigate('/')} className="home-button">Home</button>
         <button onClick={() => navigate('/laundry')} className="home-button">Book Laundry</button>
-        <button onClick={() => navigate('/login')} className="home-button">Login</button>
       </div>
 
       <LogoHeader />

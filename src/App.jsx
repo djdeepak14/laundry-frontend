@@ -35,14 +35,12 @@ const AppRoutes = () => {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  // selectedDay is an object: { date: Date, day: number, dayName: string }
   const [selectedDay, setSelectedDay] = useState(null);
   const [bookings, setBookings] = useState(() => JSON.parse(localStorage.getItem('sevasBookings') || '{}'));
   const [selectedSlots, setSelectedSlots] = useState(() => JSON.parse(localStorage.getItem('sevasSelectedSlots') || '{}'));
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
 
-  // Helper: get day number from selectedDay object or null
   const getSelectedDayNumber = (selDay) => {
     if (!selDay) return null;
     if (typeof selDay === 'number') return selDay;
@@ -50,13 +48,13 @@ const AppRoutes = () => {
     return null;
   };
 
-  // Use selectedDay or default today
   const effectiveSelectedDay = selectedDay || {
     date: today,
     day: today.getDate(),
     dayName: weekdays[today.getDay()],
   };
 
+  // Run once on mount
   useEffect(() => {
     const now = new Date();
     const updatedBookings = {};
@@ -71,13 +69,15 @@ const AppRoutes = () => {
       if (validBookings.length > 0) {
         updatedBookings[weekKey] = validBookings;
         validBookings.forEach(booking => {
-          updatedSelectedSlots[booking.id] = true;
+          const slotId = `${new Date(booking.date).toDateString()}_${booking.machine}_${booking.timeSlot || ''}`;
+          updatedSelectedSlots[slotId] = true;
         });
       }
     });
 
     setBookings(updatedBookings);
     setSelectedSlots(updatedSelectedSlots);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -129,21 +129,22 @@ const AppRoutes = () => {
 
     const weekKey = getWeekKey(effectiveSelectedDay.date);
     const weekBookings = bookings[weekKey] || [];
-    const uniqueSlotId = `${effectiveSelectedDay.date.toDateString()}_${slotId}`;
-    const isBooked = weekBookings.some(b => b.id === uniqueSlotId);
+    const isBooked = weekBookings.some(b => b.id === slotId);
     const { washerCount, dryerCount } = getWeekBookingStats(weekKey);
 
     if (isBooked) {
+      // Unbook
       setBookings(prev => ({
         ...prev,
-        [weekKey]: prev[weekKey].filter(b => b.id !== uniqueSlotId)
+        [weekKey]: prev[weekKey].filter(b => b.id !== slotId)
       }));
       setSelectedSlots(prev => {
         const updated = { ...prev };
-        delete updated[uniqueSlotId];
+        delete updated[slotId];
         return updated;
       });
     } else {
+      // Max bookings check
       if (machineType === 'washer' && washerCount >= MAX_WEEKLY_BOOKINGS.washer) {
         alert("You can only book a maximum of 2 washers per week.");
         return;
@@ -153,19 +154,21 @@ const AppRoutes = () => {
         return;
       }
 
+      // Book
       setBookings(prev => ({
         ...prev,
         [weekKey]: [...weekBookings, {
-          id: uniqueSlotId,
+          id: slotId,
           machine,
           machineType,
           dayName: effectiveSelectedDay.dayName,
           date: effectiveSelectedDay.date,
+          timeSlot: slotId.split('_').pop(),
           timestamp: new Date().toISOString()
         }]
       }));
 
-      setSelectedSlots(prev => ({ ...prev, [uniqueSlotId]: true }));
+      setSelectedSlots(prev => ({ ...prev, [slotId]: true }));
     }
   };
 
@@ -182,17 +185,13 @@ const AppRoutes = () => {
     });
   };
 
-  const isSlotDisabled = (slotId) => {
-    const uniqueSlotId = `${effectiveSelectedDay.date.toDateString()}_${slotId}`;
-    return Boolean(selectedSlots[uniqueSlotId]);
-  };
-
   const selectedWeekKey = getWeekKey(effectiveSelectedDay.date);
   const weekBookings = bookings[selectedWeekKey] || [];
 
-  const timeSlots = useMemo(() =>
-    Array.from({ length: 14 }, (_, i) => `${i + 8}:00 - ${i + 9}:00`)
-  , []);
+  const timeSlots = useMemo(
+    () => Array.from({ length: 14 }, (_, i) => `${i + 8}:00 - ${i + 9}:00`),
+    []
+  );
 
   return (
     <Routes>
@@ -206,7 +205,7 @@ const AppRoutes = () => {
               currentYear={currentYear}
               setCurrentMonth={setCurrentMonth}
               setCurrentYear={setCurrentYear}
-              selectedDay={getSelectedDayNumber(effectiveSelectedDay)}  // Pass day number here
+              selectedDay={getSelectedDayNumber(effectiveSelectedDay)}
               setSelectedDay={setSelectedDay}
               bookings={bookings}
               selectedWeekKey={selectedWeekKey}
@@ -233,7 +232,6 @@ const AppRoutes = () => {
               timeSlots={timeSlots}
               selectedSlots={selectedSlots}
               toggleBooking={toggleBooking}
-              isSlotDisabled={isSlotDisabled}
               weekBookings={weekBookings}
               handleUnbook={handleUnbook}
               selectedWeekKey={selectedWeekKey}
