@@ -1,8 +1,7 @@
 // src/components/LogoHeader.js
 import React from 'react';
-import sevasLogo from '../assets/Sevas.png'; // relative path from components folder
-import Clock from './clock'; // Make sure Clock.js is in the same folder
-
+import sevasLogo from '../assets/Sevas.png'; 
+import Clock from './clock'; 
 const LogoHeader = () => {
   return (
     <header className="flex justify-between items-center p-4 bg-blue-100 shadow">

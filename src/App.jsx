@@ -1,14 +1,27 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
-import './App.css';
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useNavigate,
+  Navigate,
+} from "react-router-dom";
+import "./App.css";
 
-import HomePage from './components/HomePage';
-import LaundryBookingPage from './components/LaundryBookingPage';
-import LoginForm from './components/LoginForm';
+import HomePage from "./components/HomePage";
+import LaundryBookingPage from "./components/LaundryBookingPage";
+import LoginForm from "./components/LoginForm";
+
+import {
+
+  getBookings,
+  createBooking,
+  deleteBooking,
+} from "./api";
 
 const months = [
   "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
+  "July", "August", "September", "October", "November", "December",
 ];
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const machines = [
@@ -18,17 +31,14 @@ const machines = [
   { name: "Dryer 2", type: "dryer" },
 ];
 
-const MAX_WEEKLY_BOOKINGS = {
-  washer: 2,
-  dryer: 2,
-};
+const MAX_WEEKLY_BOOKINGS = { washer: 2, dryer: 2 };
 
 const getWeekNumber = (date) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() + 4 - (d.getDay() || 7));
   const yearStart = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 };
 
 const AppRoutes = () => {
@@ -36,17 +46,11 @@ const AppRoutes = () => {
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDay, setSelectedDay] = useState(null);
-  const [bookings, setBookings] = useState(() => JSON.parse(localStorage.getItem('sevasBookings') || '{}'));
-  const [selectedSlots, setSelectedSlots] = useState(() => JSON.parse(localStorage.getItem('sevasSelectedSlots') || '{}'));
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [bookings, setBookings] = useState({});
+  const [selectedSlots, setSelectedSlots] = useState({});
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
+  const [token, setToken] = useState(localStorage.getItem('token'));
   const navigate = useNavigate();
-
-  const getSelectedDayNumber = (selDay) => {
-    if (!selDay) return null;
-    if (typeof selDay === 'number') return selDay;
-    if (selDay.day) return selDay.day;
-    return null;
-  };
 
   const effectiveSelectedDay = selectedDay || {
     date: today,
@@ -54,40 +58,65 @@ const AppRoutes = () => {
     dayName: weekdays[today.getDay()],
   };
 
-  // Run once on mount
+  const getWeekKey = (date) => {
+    const year = date.getFullYear();
+    const weekNum = getWeekNumber(date);
+    return `${year}-W${String(weekNum).padStart(2, "0")}`;
+  };
+
+  const getWeekBookingStats = (weekKey) => {
+    const weekBookings = bookings[weekKey] || [];
+    const washerCount = weekBookings.filter((b) => b.machineType === "washer").length;
+    const dryerCount = weekBookings.filter((b) => b.machineType === "dryer").length;
+    return { totalBookings: weekBookings.length, washerCount, dryerCount };
+  };
+
+  // Fetch bookings from backend
   useEffect(() => {
-    const now = new Date();
-    const updatedBookings = {};
-    const updatedSelectedSlots = {};
+    if (!token) return;
+    const fetchData = async () => {
+      try {
+        const data = await getBookings(token);
+        const updatedBookings = {};
+        const updatedSelectedSlots = {};
 
-    Object.entries(bookings).forEach(([weekKey, weekBookings]) => {
-      const validBookings = weekBookings.filter(booking => {
-        const bookingDate = new Date(booking.date);
-        return bookingDate >= now;
-      });
-
-      if (validBookings.length > 0) {
-        updatedBookings[weekKey] = validBookings;
-        validBookings.forEach(booking => {
-          const slotId = `${new Date(booking.date).toDateString()}_${booking.machine}_${booking.timeSlot || ''}`;
-          updatedSelectedSlots[slotId] = true;
+        data.forEach((booking) => {
+          const weekKey = getWeekKey(new Date(booking.date));
+          if (!updatedBookings[weekKey]) updatedBookings[weekKey] = [];
+          updatedBookings[weekKey].push(booking);
+          updatedSelectedSlots[booking.slotId] = true;
         });
+
+        setBookings(updatedBookings);
+        setSelectedSlots(updatedSelectedSlots);
+      } catch (err) {
+        console.error('Fetch bookings error:', err.response?.data || err.message);
+        if (err.response?.status === 401) {
+          setIsLoggedIn(false);
+          setToken(null);
+          localStorage.removeItem('token');
+          navigate("/login");
+        }
       }
-    });
+    };
 
-    setBookings(updatedBookings);
-    setSelectedSlots(updatedSelectedSlots);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetchData();
+  }, [token, navigate]);
 
-  useEffect(() => {
-    localStorage.setItem('sevasBookings', JSON.stringify(bookings));
-    localStorage.setItem('sevasSelectedSlots', JSON.stringify(selectedSlots));
-  }, [bookings, selectedSlots]);
-
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = async (token, userId) => {
+    setToken(token);
+    localStorage.setItem('token', token);
+    localStorage.setItem('userId', userId);
     setIsLoggedIn(true);
     navigate("/");
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+    navigate("/login");
   };
 
   const handleMonthChange = (direction) => {
@@ -111,83 +140,97 @@ const AppRoutes = () => {
     navigate("/laundry");
   };
 
-  const getWeekKey = (date) => {
-    const year = date.getFullYear();
-    const weekNum = getWeekNumber(date);
-    return `${year}-W${String(weekNum).padStart(2, '0')}`;
-  };
-
-  const getWeekBookingStats = (weekKey) => {
-    const weekBookings = bookings[weekKey] || [];
-    const washerCount = weekBookings.filter(b => b.machineType === 'washer').length;
-    const dryerCount = weekBookings.filter(b => b.machineType === 'dryer').length;
-    return { totalBookings: weekBookings.length, washerCount, dryerCount };
-  };
-
-  const toggleBooking = (slotId, machine, machineType) => {
-    if (!effectiveSelectedDay) return;
+  // Book / Unbook toggle
+  const toggleBooking = async (slotId, machine, machineType) => {
+    if (!effectiveSelectedDay || !token) return;
 
     const weekKey = getWeekKey(effectiveSelectedDay.date);
     const weekBookings = bookings[weekKey] || [];
-    const isBooked = weekBookings.some(b => b.id === slotId);
+    const isBooked = weekBookings.some((b) => b.slotId === slotId);
     const { washerCount, dryerCount } = getWeekBookingStats(weekKey);
 
     if (isBooked) {
-      // Unbook
-      setBookings(prev => ({
-        ...prev,
-        [weekKey]: prev[weekKey].filter(b => b.id !== slotId)
-      }));
-      setSelectedSlots(prev => {
-        const updated = { ...prev };
-        delete updated[slotId];
-        return updated;
-      });
+      const booking = weekBookings.find((b) => b.slotId === slotId);
+      if (booking) {
+        try {
+          await deleteBooking(booking._id, token); // <-- use _id
+          setBookings((prev) => ({
+            ...prev,
+            [weekKey]: prev[weekKey].filter((b) => b.slotId !== slotId),
+          }));
+          setSelectedSlots((prev) => {
+            const updated = { ...prev };
+            delete updated[slotId];
+            return updated;
+          });
+        } catch (err) {
+          console.error('Delete booking error:', err.response?.data || err.message);
+          alert("Failed to cancel booking. Check console for details.");
+        }
+      }
     } else {
-      // Max bookings check
-      if (machineType === 'washer' && washerCount >= MAX_WEEKLY_BOOKINGS.washer) {
-        alert("You can only book a maximum of 2 washers per week.");
+      if (machineType === "washer" && washerCount >= MAX_WEEKLY_BOOKINGS.washer) {
+        alert("You can only book 2 washers per week.");
         return;
       }
-      if (machineType === 'dryer' && dryerCount >= MAX_WEEKLY_BOOKINGS.dryer) {
-        alert("You can only book a maximum of 2 dryers per week.");
+      if (machineType === "dryer" && dryerCount >= MAX_WEEKLY_BOOKINGS.dryer) {
+        alert("You can only book 2 dryers per week.");
         return;
       }
 
-      // Book
-      setBookings(prev => ({
-        ...prev,
-        [weekKey]: [...weekBookings, {
-          id: slotId,
-          machine,
-          machineType,
-          dayName: effectiveSelectedDay.dayName,
-          date: effectiveSelectedDay.date,
-          timeSlot: slotId.split('_').pop(),
-          timestamp: new Date().toISOString()
-        }]
-      }));
+      const newBooking = {
+        slotId,
+        machine,
+        machineType,
+        dayName: effectiveSelectedDay.dayName,
+        date: effectiveSelectedDay.date,
+        timeSlot: slotId.split("_").pop(),
+        timestamp: new Date().toISOString(),
+      };
 
-      setSelectedSlots(prev => ({ ...prev, [slotId]: true }));
+      try {
+        const saved = await createBooking(newBooking, token);
+        setBookings((prev) => ({
+          ...prev,
+          [weekKey]: [...weekBookings, saved],
+        }));
+        setSelectedSlots((prev) => ({ ...prev, [slotId]: true }));
+      } catch (err) {
+        console.error('Create booking error:', err.response?.data || err.message);
+        alert("Failed to create booking. Check console for details.");
+      }
     }
   };
 
-  const handleUnbook = (weekKey, bookingId) => {
-    setBookings(prev => ({
-      ...prev,
-      [weekKey]: prev[weekKey]?.filter(b => b.id !== bookingId) || []
-    }));
-
-    setSelectedSlots(prev => {
-      const updated = { ...prev };
-      delete updated[bookingId];
-      return updated;
-    });
+  // Unbook a booking by _id
+  const handleUnbook = async (bookingId) => {
+    if (!token) return;
+    try {
+      await deleteBooking(bookingId, token);
+      // Remove booking from state
+      setBookings((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((weekKey) => {
+          updated[weekKey] = updated[weekKey].filter((b) => b._id !== bookingId);
+        });
+        return updated;
+      });
+      // Remove from selectedSlots
+      setSelectedSlots((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((slotId) => {
+          if (slotId.includes(bookingId)) delete updated[slotId];
+        });
+        return updated;
+      });
+    } catch (err) {
+      console.error('Delete booking error:', err.response?.data || err.message);
+      alert("Failed to cancel booking. Check console for details.");
+    }
   };
 
   const selectedWeekKey = getWeekKey(effectiveSelectedDay.date);
   const weekBookings = bookings[selectedWeekKey] || [];
-
   const timeSlots = useMemo(
     () => Array.from({ length: 14 }, (_, i) => `${i + 8}:00 - ${i + 9}:00`),
     []
@@ -205,7 +248,7 @@ const AppRoutes = () => {
               currentYear={currentYear}
               setCurrentMonth={setCurrentMonth}
               setCurrentYear={setCurrentYear}
-              selectedDay={getSelectedDayNumber(effectiveSelectedDay)}
+              selectedDay={effectiveSelectedDay.day}
               setSelectedDay={setSelectedDay}
               bookings={bookings}
               selectedWeekKey={selectedWeekKey}
@@ -216,6 +259,7 @@ const AppRoutes = () => {
               handleUnbook={handleUnbook}
               months={months}
               weekdays={weekdays}
+              handleLogout={handleLogout}
             />
           ) : (
             <Navigate to="/login" replace />
@@ -248,6 +292,16 @@ const AppRoutes = () => {
             <Navigate to="/" replace />
           ) : (
             <LoginForm onLoginSuccess={handleLoginSuccess} />
+          )
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          isLoggedIn ? (
+            <Navigate to="/" replace />
+          ) : (
+            <LoginForm onLoginSuccess={handleLoginSuccess} /> 
           )
         }
       />

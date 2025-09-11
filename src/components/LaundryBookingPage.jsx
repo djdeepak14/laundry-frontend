@@ -9,8 +9,7 @@ const LaundryBookingPage = ({
   selectedSlots,
   toggleBooking,
   weekBookings,
-  handleUnbook,
-  selectedWeekKey
+  handleUnbook, // expects booking _id
 }) => {
   const [openMachines, setOpenMachines] = useState({});
   const navigate = useNavigate();
@@ -22,6 +21,11 @@ const LaundryBookingPage = ({
     }));
   };
 
+  // Convert selectedDay.date safely
+  const selectedDayDate = selectedDay.date instanceof Date 
+    ? selectedDay.date 
+    : new Date(selectedDay.date);
+
   return (
     <div className="container">
       {/* Home Button */}
@@ -30,21 +34,19 @@ const LaundryBookingPage = ({
       </div>
 
       {/* Page Heading */}
-      <h1>Schedule for {selectedDay.dayName}, {selectedDay.date.toDateString()}</h1>
+      <h1>Schedule for {selectedDay.dayName}, {selectedDayDate.toDateString()}</h1>
 
       {/* Machine Schedules */}
       {machines.map(machine => (
         <div key={machine.name} className="machine-schedule">
-          <h3
-            onClick={() => toggleMachineOpen(machine.name)}
-          >
+          <h3 onClick={() => toggleMachineOpen(machine.name)}>
             {machine.name} ({machine.type}) {openMachines[machine.name] ? '▲' : '▼'}
           </h3>
 
           {openMachines[machine.name] && (
             <div className="time-slots-grid">
               {timeSlots.map(slot => {
-                const slotId = `${selectedDay.date.toDateString()}_${machine.name}_${slot}`;
+                const slotId = `${selectedDayDate.toDateString()}_${machine.name}_${slot}`;
                 const isBooked = Boolean(selectedSlots[slotId]);
 
                 return (
@@ -73,12 +75,18 @@ const LaundryBookingPage = ({
       <div className="booked-list">
         <h2>My Bookings</h2>
         <ul>
-          {weekBookings.map(booking => (
-            <li key={booking.id}>
-              {booking.machine} ({booking.machineType}) - {booking.date.toDateString()} {booking.dayName}
-              <button onClick={() => handleUnbook(selectedWeekKey, booking.id)}>Cancel</button>
-            </li>
-          ))}
+          {weekBookings.map(booking => {
+            const bookingDate = booking.date instanceof Date 
+              ? booking.date 
+              : new Date(booking.date);
+
+            return (
+              <li key={booking._id}>
+                {booking.machine} ({booking.machineType}) - {bookingDate.toDateString()} {booking.dayName}
+                <button onClick={() => handleUnbook(booking._id)}>Cancel</button>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>
