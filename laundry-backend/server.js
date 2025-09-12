@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 // ---------------------
 // MongoDB Connection
 // ---------------------
-mongoose.connect("mongodb://127.0.0.1:27017/laundryDB", {
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -47,15 +47,13 @@ const Booking = mongoose.model("Booking", bookingSchema);
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
-    console.log("No token provided");
     return res.status(401).json({ message: "No token provided" });
   }
   try {
-    const decoded = jwt.verify(token, "secret_key");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch (err) {
-    console.error("Token verification error:", err);
     return res.status(401).json({ message: "Invalid token" });
   }
 };
@@ -68,7 +66,6 @@ const verifyToken = (req, res, next) => {
 app.post("/register", async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log("Register attempt:", { username });
 
     if (!username || !password) {
       return res.status(400).json({ message: "Username and password required" });
@@ -81,10 +78,8 @@ app.post("/register", async (req, res) => {
     const newUser = new User({ username, password: hashedPassword });
     await newUser.save();
 
-    console.log("User registered:", username);
     res.json({ message: "User registered successfully" });
   } catch (err) {
-    console.error("Register error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -93,7 +88,6 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log("Login attempt:", { username });
 
     if (!username || !password) return res.status(400).json({ message: "Username and password required" });
 
@@ -103,11 +97,9 @@ app.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: "Invalid username or password" });
 
-    const token = jwt.sign({ id: user._id, username }, "secret_key", { expiresIn: "1h" });
-    console.log("Login successful:", username);
+    const token = jwt.sign({ id: user._id, username }, process.env.JWT_SECRET, { expiresIn: "1h" });
     res.json({ token, userId: user._id });
   } catch (err) {
-    console.error("Login error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -116,10 +108,8 @@ app.post("/login", async (req, res) => {
 app.get("/bookings", verifyToken, async (req, res) => {
   try {
     const bookings = await Booking.find({ userId: req.user.id });
-    console.log("Fetched bookings for user:", req.user.username);
     res.json(bookings);
   } catch (err) {
-    console.error("Get bookings error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -144,10 +134,8 @@ app.post("/bookings", verifyToken, async (req, res) => {
     });
 
     const saved = await booking.save();
-    console.log("Booking created:", saved._id);
     res.json(saved);
   } catch (err) {
-    console.error("Create booking error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -155,10 +143,8 @@ app.post("/bookings", verifyToken, async (req, res) => {
 // Delete booking (unbook)
 app.delete("/bookings/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
-  console.log("Delete request received:", { bookingId: id, userId: req.user.id });
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    console.log("Invalid booking id:", id);
     return res.status(400).json({ message: "Invalid booking id" });
   }
 
@@ -166,25 +152,14 @@ app.delete("/bookings/:id", verifyToken, async (req, res) => {
     const booking = await Booking.findOneAndDelete({ _id: id, userId: req.user.id });
     if (!booking) return res.status(404).json({ message: "Booking not found or not authorized" });
 
-    console.log("Booking deleted:", id);
     res.json({ message: `Booking ${id} deleted` });
   } catch (err) {
-    console.error("Delete booking error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
-});
-
-// Simple GET routes for testing
-app.get("/register", (req, res) => {
-  res.send("⚠️ Use POST with JSON { username, password } to register.");
-});
-
-app.get("/login", (req, res) => {
-  res.send("⚠️ Use POST with JSON { username, password } to login.");
 });
 
 // ---------------------
 // Start server
 // ---------------------
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
