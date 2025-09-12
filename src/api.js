@@ -4,7 +4,7 @@ import axios from 'axios';
 // Axios instance
 // ---------------------
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL, // <- now uses your env variable
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3002', // fallback to local
   headers: {
     'Content-Type': 'application/json',
   },
