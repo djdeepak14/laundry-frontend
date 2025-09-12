@@ -4,11 +4,11 @@ import axios from 'axios';
 // Axios instance
 // ---------------------
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3002', // fallback to local
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001', // fallback if env not set
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 seconds timeout
+  timeout: 10000, // 10 seconds
 });
 
 // ---------------------

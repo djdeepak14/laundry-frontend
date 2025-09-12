@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  BrowserRouter as Router,
   Routes,
   Route,
   useNavigate,
@@ -13,7 +12,6 @@ import LaundryBookingPage from "./components/LaundryBookingPage";
 import LoginForm from "./components/LoginForm";
 
 import {
-
   getBookings,
   createBooking,
   deleteBooking,
@@ -310,9 +308,7 @@ const AppRoutes = () => {
 };
 
 const App = () => (
-  <Router>
-    <AppRoutes />
-  </Router>
+  <AppRoutes />
 );
 
 export default App;

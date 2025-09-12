@@ -21,10 +21,14 @@ const LoginForm = ({ onLoginSuccess }) => {
     setError('');
     setLoading(true);
 
+    // Use environment variable for API URL
+    const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+    const url = isRegistering ? `${BASE_URL}/register` : `${BASE_URL}/login`;
+
     try {
-      const url = isRegistering
-        ? 'http://localhost:3002/register'
-        : 'http://localhost:3002/login';
+      if (!username.trim() || !password.trim()) {
+        throw new Error('Username and password are required');
+      }
 
       console.log('Sending to backend:', { username, password });
 
@@ -55,8 +59,13 @@ const LoginForm = ({ onLoginSuccess }) => {
         }
       }
     } catch (err) {
-      console.error('Request error:', err.response?.data || err);
-      setError(err.response?.data?.message || 'An error occurred. Check console.');
+      console.error('Request error:', {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+        code: err.code,
+      });
+      setError(err.response?.data?.message || err.message || 'Failed to connect to server. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -118,6 +127,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           onChange={(e) => setUsername(e.target.value)}
           style={inputStyle}
           required
+          disabled={loading}
         />
         <input
           type="password"
@@ -126,6 +136,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           onChange={(e) => setPassword(e.target.value)}
           style={inputStyle}
           required
+          disabled={loading}
         />
         {error && <p style={errorStyle}>{error}</p>}
         <button type="submit" style={buttonStyle} disabled={loading}>
