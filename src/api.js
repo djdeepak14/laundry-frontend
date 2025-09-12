@@ -1,21 +1,28 @@
 // src/api.js
 import axios from 'axios';
 
-// Create a shared axios instance
+// ---------------------
+// Axios instance
+// ---------------------
 const API = axios.create({
-  baseURL: 'http://localhost:3002',
+  baseURL: 'https://sevas-laundry.onrender.com', // <- deployed backend URL
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add token to requests where needed
+// ---------------------
+// Auth header helper
+// ---------------------
 const setAuthHeader = (token) => ({
   headers: {
     Authorization: `Bearer ${token}`,
   },
 });
 
+// ---------------------
+// Auth APIs
+// ---------------------
 export const loginUser = async (username, password) => {
   try {
     const response = await API.post('/login', {
@@ -44,6 +51,9 @@ export const registerUser = async (username, password) => {
   }
 };
 
+// ---------------------
+// Booking APIs
+// ---------------------
 export const getBookings = async (token) => {
   try {
     const response = await API.get('/bookings', setAuthHeader(token));
