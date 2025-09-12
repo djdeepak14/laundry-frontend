@@ -15,7 +15,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.19.0",
     "mongoose": "^8.18.1",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "telnet": "^0.0.1"
   },
   "engines": {
     "node": "22.16.0"
