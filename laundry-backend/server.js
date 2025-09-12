@@ -1,8 +1,5 @@
 // server.js
-require('dotenv').config(); // Load .env locally for development
-console.log("MONGO_URI =", process.env.MONGO_URI);
-console.log("JWT_SECRET =", process.env.JWT_SECRET);
-
+require('dotenv').config(); // Load .env
 
 const express = require("express");
 const cors = require("cors");
@@ -12,16 +9,21 @@ const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 
 const app = express();
-app.use(cors());
+
+// ---------------------
+// Middleware
+// ---------------------
+app.use(cors({
+  origin: '*', // Allow all origins, can restrict to frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.json());
 
 // ---------------------
 // MongoDB Connection
 // ---------------------
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
@@ -48,13 +50,12 @@ const User = mongoose.model("User", userSchema);
 const Booking = mongoose.model("Booking", bookingSchema);
 
 // ---------------------
-// Middleware
+// JWT Middleware
 // ---------------------
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ message: "No token provided" });
-  }
+  if (!token) return res.status(401).json({ message: "No token provided" });
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
@@ -68,11 +69,17 @@ const verifyToken = (req, res, next) => {
 // Routes
 // ---------------------
 
+// Root route
+app.get("/", (req, res) => {
+  res.send("🚀 Laundry backend is running!");
+});
+
 // Register
 app.post("/register", async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ message: "Username and password required" });
+    if (!username || !password)
+      return res.status(400).json({ message: "Username and password required" });
 
     const existingUser = await User.findOne({ username });
     if (existingUser) return res.status(400).json({ message: "User already exists" });
@@ -92,7 +99,8 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ message: "Username and password required" });
+    if (!username || !password)
+      return res.status(400).json({ message: "Username and password required" });
 
     const user = await User.findOne({ username });
     if (!user) return res.status(401).json({ message: "Invalid username or password" });
@@ -147,7 +155,8 @@ app.post("/bookings", verifyToken, async (req, res) => {
 // Delete booking
 app.delete("/bookings/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
-  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid booking id" });
+  if (!mongoose.Types.ObjectId.isValid(id))
+    return res.status(400).json({ message: "Invalid booking id" });
 
   try {
     const booking = await Booking.findOneAndDelete({ _id: id, userId: req.user.id });
