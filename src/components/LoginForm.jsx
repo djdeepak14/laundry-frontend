@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import washerImg from '../assets/washer.jpg';
@@ -25,7 +26,8 @@ const LoginForm = ({ onLoginSuccess }) => {
     const reconnectInterval = 5000; // 5 seconds
 
     const connectWebSocket = () => {
-      ws = new WebSocket(`${WS_BASE_URL}/ws`);
+      // Use WS_BASE_URL directly without appending /ws
+      ws = new WebSocket(WS_BASE_URL);
 
       ws.onopen = () => {
         console.log('WebSocket connected');
