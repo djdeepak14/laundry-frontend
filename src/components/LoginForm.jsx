@@ -11,60 +11,26 @@ const LoginForm = ({ onLoginSuccess }) => {
   const [wsMessage, setWsMessage] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
 
-  // API and WebSocket URLs from environment variables
+  // API URL from environment variables
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://sevas-laundry-backend.onrender.com';
-  const WS_BASE_URL = process.env.REACT_APP_WS_URL || 'wss://sevas-laundry-backend.onrender.com/ws';
   console.log('API URL:', API_BASE_URL);
-  console.log('WebSocket URL:', WS_BASE_URL);
 
-  // Initialize WebSocket with reconnection logic
+  // Simulate WebSocket with HTTP polling
   useEffect(() => {
-    let ws;
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
-    const reconnectInterval = 5000; // 5 seconds
-
-    const connectWebSocket = () => {
-      ws = new WebSocket(WS_BASE_URL);
-
-      ws.onopen = () => {
-        console.log('WebSocket connected');
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/status`); // your backend should have a /status route
+        setWsMessage(`Update: ${JSON.stringify(res.data)}`);
         setWsConnected(true);
-        setWsMessage('Connected to real-time updates');
-        reconnectAttempts = 0;
-      };
-
-      ws.onmessage = (event) => {
-        console.log('WebSocket message received:', event.data);
-        setWsMessage(`Update: ${event.data}`);
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setWsMessage(`WebSocket connection failed: ${error.message || 'Unknown error'}`);
+      } catch (err) {
+        setWsMessage('Unable to fetch updates from backend.');
         setWsConnected(false);
-      };
+        console.error(err);
+      }
+    }, 2000); // every 2 seconds
 
-      ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', { code: event.code, reason: event.reason });
-        setWsConnected(false);
-        setWsMessage('Disconnected from live updates');
-        if (reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
-          setTimeout(connectWebSocket, reconnectInterval);
-        } else {
-          setWsMessage('Failed to reconnect to WebSocket after multiple attempts');
-        }
-      };
-    };
-
-    connectWebSocket();
-
-    return () => {
-      if (ws) ws.close();
-    };
-  }, [WS_BASE_URL]);
+    return () => clearInterval(interval);
+  }, [API_BASE_URL]);
 
   const toggleMode = () => {
     setIsRegistering(!isRegistering);
@@ -92,9 +58,7 @@ const LoginForm = ({ onLoginSuccess }) => {
       console.log('Sending to backend:', payload);
 
       const response = await axios.post(url, payload, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         withCredentials: true,
         timeout: 10000,
       });
@@ -219,7 +183,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           style={inputStyle}
           required
           disabled={loading}
-          autocomplete="username"
+          autoComplete="username"
         />
         <input
           type="password"
@@ -229,7 +193,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           style={inputStyle}
           required
           disabled={loading}
-          autocomplete="current-password"
+          autoComplete="current-password"
         />
         {error && <p style={errorStyle}>{error}</p>}
         {wsMessage && <p style={wsMessageStyle}>{wsMessage}</p>}
