@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import washerImg from '../assets/washer.jpg';
@@ -32,7 +31,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         console.log('WebSocket connected');
         setWsConnected(true);
         setWsMessage('Connected to real-time updates');
-        reconnectAttempts = 0; // Reset attempts on successful connection
+        reconnectAttempts = 0;
       };
 
       ws.onmessage = (event) => {
@@ -96,8 +95,8 @@ const LoginForm = ({ onLoginSuccess }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        withCredentials: true, // For cookies, if backend uses them
-        timeout: 10000, // 10-second timeout
+        withCredentials: true,
+        timeout: 10000,
       });
 
       const data = response.data;
@@ -114,7 +113,6 @@ const LoginForm = ({ onLoginSuccess }) => {
         } else {
           if (data.token && data.userId) {
             console.log('Login success:', data);
-            // Store token in localStorage
             localStorage.setItem('token', data.token);
             localStorage.setItem('userId', data.userId);
             onLoginSuccess(data.token, data.userId);
