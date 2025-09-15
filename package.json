@@ -11,8 +11,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.27.0",
-    "react-scripts": "^0.0.0",
-    "serve": "^14.2.3",
+    "react-scripts": "5.0.1",  
     "web-vitals": "^4.2.4"
   },
   "scripts": {
@@ -20,7 +19,8 @@
     "start:prod": "serve -s build -l $PORT",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "install:clean": "rm -rf node_modules package-lock.json && npm install" 
   },
   "eslintConfig": {
     "extends": [
