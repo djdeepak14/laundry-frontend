@@ -19,7 +19,7 @@ const LoginForm = ({ onLoginSuccess }) => {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/status`); // your backend should have a /status route
+        const res = await axios.get(`${API_BASE_URL}/status`);
         setWsMessage(`Update: ${JSON.stringify(res.data)}`);
         setWsConnected(true);
       } catch (err) {
@@ -27,7 +27,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         setWsConnected(false);
         console.error(err);
       }
-    }, 2000); // every 2 seconds
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [API_BASE_URL]);
@@ -66,23 +66,18 @@ const LoginForm = ({ onLoginSuccess }) => {
       const data = response.data;
       console.log('Backend response:', data);
 
-      if (response.status !== 200) {
-        setError(data.message || 'An error occurred. Check console.');
+      if (isRegistering) {
+        alert('✅ Registration successful! Please login.');
+        setIsRegistering(false);
+        setUsername('');
+        setPassword('');
       } else {
-        if (isRegistering) {
-          alert('✅ Registration successful! Please login.');
-          setIsRegistering(false);
-          setUsername('');
-          setPassword('');
+        if (data.token && data.userId) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('userId', data.userId);
+          onLoginSuccess(data.token, data.userId);
         } else {
-          if (data.token && data.userId) {
-            console.log('Login success:', data);
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('userId', data.userId);
-            onLoginSuccess(data.token, data.userId);
-          } else {
-            setError('Login failed: Invalid server response.');
-          }
+          setError('Login failed: Invalid server response.');
         }
       }
     } catch (err) {
@@ -92,6 +87,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         data: err.response?.data,
         code: err.code,
       });
+
       if (err.code === 'ERR_NETWORK') {
         setError('Network error: Unable to connect to the server. Ensure the backend is running and CORS is configured correctly.');
       } else if (err.response?.status === 0) {
