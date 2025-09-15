@@ -28,7 +28,7 @@ const PORT = process.env.PORT || 5001;
 // ---------------------
 const allowedOrigins = [
   'http://localhost:3000', // local dev
-  FRONTEND_URL.replace(/\/$/, '') // Render frontend
+  FRONTEND_URL.replace(/\/$/, ''), // deployed frontend
 ];
 
 console.log('Allowed origins:', allowedOrigins);
@@ -40,6 +40,7 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Allow requests with no origin (e.g., mobile apps, Postman)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -110,7 +111,6 @@ const verifyToken = (req, res, next) => {
 // ---------------------
 // Routes
 // ---------------------
-
 app.get('/', (req, res) => {
   res.send('🚀 Laundry backend is running!');
 });
