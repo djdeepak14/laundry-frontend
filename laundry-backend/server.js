@@ -1,4 +1,4 @@
-require('dotenv').config(); // Load .env
+require('dotenv').config(); // Load environment variables from .env
 
 const express = require('express');
 const cors = require('cors');
@@ -13,20 +13,23 @@ const app = express();
 // ---------------------
 // Environment Validation
 // ---------------------
-const { MONGO_URI, JWT_SECRET, FRONTEND_URL, PORT = 3002 } = process.env;
+const { MONGO_URI, JWT_SECRET, FRONTEND_URL } = process.env;
 if (!MONGO_URI) throw new Error('MONGO_URI is not defined in .env');
 if (!JWT_SECRET) throw new Error('JWT_SECRET is not defined in .env');
 if (!FRONTEND_URL) throw new Error('FRONTEND_URL is not defined in .env');
 
+// Set port to 5001 to match frontend requests
+const PORT = process.env.PORT || 5001;
+
 const allowedOrigins = [
-  'http://localhost:3000', // Local dev
+  'http://localhost:3000', // Local development
   FRONTEND_URL, // Production frontend (e.g., https://sevas-laundry.onrender.com)
 ];
 
 // ---------------------
 // Middleware
 // ---------------------
-app.use(helmet()); // Security headers
+app.use(helmet()); // Add security headers
 app.use(
   cors({
     origin: (origin, callback) => {
