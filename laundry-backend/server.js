@@ -13,22 +13,18 @@ const app = express();
 // ---------------------
 // Environment Validation
 // ---------------------
-const { MONGO_URI, JWT_SECRET, FRONTEND_URL } = process.env;
+const { MONGO_URI, JWT_SECRET, FRONTEND_URL, PORT } = process.env;
 if (!MONGO_URI) throw new Error('MONGO_URI is not defined in .env');
 if (!JWT_SECRET) throw new Error('JWT_SECRET is not defined in .env');
 if (!FRONTEND_URL) throw new Error('FRONTEND_URL is not defined in .env');
-
-// ---------------------
-// Port
-// ---------------------
-const PORT = process.env.PORT || 5001;
+if (!PORT) throw new Error('PORT is not defined in .env');
 
 // ---------------------
 // Allowed Origins
 // ---------------------
 const allowedOrigins = [
   'http://localhost:3000', // local dev
-  FRONTEND_URL.replace(/\/$/, ''), // deployed frontend
+  FRONTEND_URL.replace(/\/$/, ''), // deployed frontend: https://sevas-laundry-frontend.onrender.com
 ];
 
 console.log('Allowed origins:', allowedOrigins);
@@ -40,7 +36,7 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g., mobile apps, Postman)
+      // Allow requests with no origin (e.g., mobile apps, Postman) or from allowed origins
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -51,6 +47,7 @@ app.use(
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
+    optionsSuccessStatus: 200, // Ensure preflight requests return 200
   })
 );
 app.use(express.json());
@@ -60,6 +57,8 @@ app.use(express.json());
 // ---------------------
 mongoose
   .connect(MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
     serverSelectionTimeoutMS: 5000,
     retryWrites: true,
     w: 'majority',
@@ -115,6 +114,11 @@ app.get('/', (req, res) => {
   res.send('🚀 Laundry backend is running!');
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'Server is running' });
+});
+
 // Register
 app.post('/register', async (req, res) => {
   try {
@@ -161,6 +165,7 @@ app.get('/bookings', verifyToken, async (req, res) => {
     const bookings = await Booking.find({ userId: req.user.id });
     res.json(bookings);
   } catch (err) {
+    console.error('Get bookings error:', err.message);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -195,6 +200,7 @@ app.post('/bookings', verifyToken, async (req, res) => {
 
     res.json(saved);
   } catch (err) {
+    console.error('Create booking error:', err.message);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -217,6 +223,7 @@ app.delete('/bookings/:id', verifyToken, async (req, res) => {
 
     res.json({ message: `Booking ${id} deleted` });
   } catch (err) {
+    console.error('Delete booking error:', err.message);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -234,13 +241,16 @@ wss.on('connection', (ws, req) => {
   const origin = req.headers.origin?.replace(/\/$/, '') || '';
   console.log(`WebSocket connection attempt from: ${origin || 'none'}`);
 
-  if (!allowedOrigins.includes(origin)) {
+  // Allow connections from allowed origins or no origin (e.g., testing tools)
+  if (origin && !allowedOrigins.includes(origin)) {
     console.warn(`WebSocket connection rejected: Invalid origin ${origin}`);
     ws.close(1008, 'Origin not allowed');
     return;
   }
 
   console.log('WebSocket client connected');
+
+  ws.send(JSON.stringify({ type: 'WELCOME', message: 'Connected to WebSocket server' }));
 
   ws.on('message', (message) => {
     try {

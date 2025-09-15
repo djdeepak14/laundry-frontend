@@ -12,40 +12,57 @@ const LoginForm = ({ onLoginSuccess }) => {
   const [wsConnected, setWsConnected] = useState(false);
 
   // API and WebSocket URLs from environment variables
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
-  const WS_BASE_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:5001';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://sevas-laundry-backend.onrender.com';
+  const WS_BASE_URL = process.env.REACT_APP_WS_URL || 'wss://sevas-laundry-backend.onrender.com';
   console.log('API URL:', API_BASE_URL);
   console.log('WebSocket URL:', WS_BASE_URL);
 
-  // Initialize WebSocket
+  // Initialize WebSocket with reconnection logic
   useEffect(() => {
-    const ws = new WebSocket(`${WS_BASE_URL}/ws`);
+    let ws;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectInterval = 5000; // 5 seconds
 
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setWsConnected(true);
-      setWsMessage('Connected to real-time updates');
+    const connectWebSocket = () => {
+      ws = new WebSocket(`${WS_BASE_URL}/ws`);
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setWsConnected(true);
+        setWsMessage('Connected to real-time updates');
+        reconnectAttempts = 0; // Reset attempts on successful connection
+      };
+
+      ws.onmessage = (event) => {
+        console.log('WebSocket message received:', event.data);
+        setWsMessage(`Update: ${event.data}`);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setWsMessage('WebSocket connection failed');
+        setWsConnected(false);
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setWsConnected(false);
+        setWsMessage('Disconnected from live updates');
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
+          setTimeout(connectWebSocket, reconnectInterval);
+        } else {
+          setWsMessage('Failed to reconnect to WebSocket after multiple attempts');
+        }
+      };
     };
 
-    ws.onmessage = (event) => {
-      console.log('WebSocket message received:', event.data);
-      setWsMessage(`Update: ${event.data}`);
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setWsMessage('WebSocket connection failed');
-      setWsConnected(false);
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setWsConnected(false);
-      setWsMessage('Disconnected from live');
-    };
+    connectWebSocket();
 
     return () => {
-      ws.close();
+      if (ws) ws.close();
     };
   }, [WS_BASE_URL]);
 
@@ -79,6 +96,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           'Content-Type': 'application/json',
         },
         withCredentials: true, // For cookies, if backend uses them
+        timeout: 10000, // 10-second timeout
       });
 
       const data = response.data;
@@ -111,8 +129,12 @@ const LoginForm = ({ onLoginSuccess }) => {
         data: err.response?.data,
         code: err.code,
       });
-      if (err.response?.status === 0) {
-        setError('Failed to connect to server. Check if backend is running and CORS is configured.');
+      if (err.code === 'ERR_NETWORK') {
+        setError('Network error: Unable to connect to the server. Ensure the backend is running and CORS is configured correctly.');
+      } else if (err.response?.status === 0) {
+        setError('CORS error: Backend did not allow request from this origin. Check backend CORS configuration.');
+      } else if (err.response?.status === 404) {
+        setError('Endpoint not found. Verify that /login or /register routes exist on the backend.');
       } else {
         setError(err.response?.data?.message || err.message || 'Failed to connect to server.');
       }
@@ -198,6 +220,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           style={inputStyle}
           required
           disabled={loading}
+          autocomplete="username"
         />
         <input
           type="password"
@@ -207,6 +230,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           style={inputStyle}
           required
           disabled={loading}
+          autocomplete="current-password"
         />
         {error && <p style={errorStyle}>{error}</p>}
         {wsMessage && <p style={wsMessageStyle}>{wsMessage}</p>}
