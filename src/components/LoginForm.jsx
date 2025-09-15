@@ -14,7 +14,7 @@ const LoginForm = ({ onLoginSuccess }) => {
 
   // API and WebSocket URLs from environment variables
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://sevas-laundry-backend.onrender.com';
-  const WS_BASE_URL = process.env.REACT_APP_WS_URL || 'wss://sevas-laundry-backend.onrender.com';
+  const WS_BASE_URL = process.env.REACT_APP_WS_URL || 'wss://sevas-laundry-backend.onrender.com/ws';
   console.log('API URL:', API_BASE_URL);
   console.log('WebSocket URL:', WS_BASE_URL);
 
@@ -26,7 +26,6 @@ const LoginForm = ({ onLoginSuccess }) => {
     const reconnectInterval = 5000; // 5 seconds
 
     const connectWebSocket = () => {
-      // Use WS_BASE_URL directly without appending /ws
       ws = new WebSocket(WS_BASE_URL);
 
       ws.onopen = () => {
@@ -43,12 +42,12 @@ const LoginForm = ({ onLoginSuccess }) => {
 
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
-        setWsMessage('WebSocket connection failed');
+        setWsMessage(`WebSocket connection failed: ${error.message || 'Unknown error'}`);
         setWsConnected(false);
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected:', { code: event.code, reason: event.reason });
         setWsConnected(false);
         setWsMessage('Disconnected from live updates');
         if (reconnectAttempts < maxReconnectAttempts) {
