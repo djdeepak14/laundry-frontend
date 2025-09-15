@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import washerImg from '../assets/washer.jpg';
 
@@ -8,6 +8,46 @@ const LoginForm = ({ onLoginSuccess }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [wsMessage, setWsMessage] = useState('');
+  const [wsConnected, setWsConnected] = useState(false);
+
+  // API and WebSocket URLs from environment variables
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+  const WS_BASE_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:5001';
+  console.log('API URL:', API_BASE_URL);
+  console.log('WebSocket URL:', WS_BASE_URL);
+
+  // Initialize WebSocket
+  useEffect(() => {
+    const ws = new WebSocket(`${WS_BASE_URL}/ws`);
+
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      setWsConnected(true);
+      setWsMessage('Connected to real-time updates');
+    };
+
+    ws.onmessage = (event) => {
+      console.log('WebSocket message received:', event.data);
+      setWsMessage(`Update: ${event.data}`);
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      setWsMessage('WebSocket connection failed');
+      setWsConnected(false);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+      setWsConnected(false);
+      setWsMessage('Disconnected from live');
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [WS_BASE_URL]);
 
   const toggleMode = () => {
     setIsRegistering(!isRegistering);
@@ -21,24 +61,27 @@ const LoginForm = ({ onLoginSuccess }) => {
     setError('');
     setLoading(true);
 
-    // Use environment variable for API URL
-    const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
-    const url = isRegistering ? `${BASE_URL}/register` : `${BASE_URL}/login`;
+    const url = isRegistering ? `${API_BASE_URL}/register` : `${API_BASE_URL}/login`;
+    const payload = {
+      username: username.trim(),
+      password: password.trim(),
+    };
 
     try {
-      if (!username.trim() || !password.trim()) {
+      if (!payload.username || !payload.password) {
         throw new Error('Username and password are required');
       }
 
-      console.log('Sending to backend:', { username, password });
+      console.log('Sending to backend:', payload);
 
-      const response = await axios.post(url, {
-        username: username.trim(),
-        password: password.trim(),
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        withCredentials: true, // For cookies, if backend uses them
       });
 
       const data = response.data;
-
       console.log('Backend response:', data);
 
       if (response.status !== 200) {
@@ -52,9 +95,12 @@ const LoginForm = ({ onLoginSuccess }) => {
         } else {
           if (data.token && data.userId) {
             console.log('Login success:', data);
-            onLoginSuccess(data.token, data.userId); // Pass token and userId
+            // Store token in localStorage
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('userId', data.userId);
+            onLoginSuccess(data.token, data.userId);
           } else {
-            setError('Login failed: invalid server response.');
+            setError('Login failed: Invalid server response.');
           }
         }
       }
@@ -65,7 +111,11 @@ const LoginForm = ({ onLoginSuccess }) => {
         data: err.response?.data,
         code: err.code,
       });
-      setError(err.response?.data?.message || err.message || 'Failed to connect to server. Please try again.');
+      if (err.response?.status === 0) {
+        setError('Failed to connect to server. Check if backend is running and CORS is configured.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to connect to server.');
+      }
     } finally {
       setLoading(false);
     }
@@ -83,41 +133,61 @@ const LoginForm = ({ onLoginSuccess }) => {
 
   const formStyle = {
     backgroundColor: 'rgba(255,255,255,0.95)',
-    padding: '3rem 4rem',
-    borderRadius: '10px',
-    boxShadow: '0 0 20px rgba(0,0,0,0.4)',
+    padding: '2rem 3rem',
+    borderRadius: '12px',
+    boxShadow: '0 0 20px rgba(0,0,0,0.3)',
     width: '400px',
-    maxWidth: '90%',
+    maxWidth: '95%',
     textAlign: 'center',
   };
 
   const inputStyle = {
     width: '100%',
-    padding: '14px',
-    margin: '15px 0',
+    padding: '12px',
+    margin: '12px 0',
     borderRadius: '6px',
-    border: '1.5px solid #ccc',
-    fontSize: '1.2rem',
+    border: '1px solid #ccc',
+    fontSize: '1rem',
+    boxSizing: 'border-box',
   };
 
   const buttonStyle = {
     width: '100%',
-    padding: '14px',
+    padding: '12px',
     backgroundColor: '#007bff',
     color: 'white',
-    fontSize: '1.3rem',
+    fontSize: '1.1rem',
     border: 'none',
     borderRadius: '6px',
     cursor: loading ? 'not-allowed' : 'pointer',
-    opacity: loading ? 0.7 : 1,
+    opacity: loading ? 0.6 : 1,
+    transition: 'opacity 0.2s',
   };
 
-  const errorStyle = { color: 'red', marginTop: '12px', fontSize: '1rem' };
+  const errorStyle = {
+    color: '#d32f2f',
+    margin: '10px 0',
+    fontSize: '0.9rem',
+  };
+
+  const wsMessageStyle = {
+    color: wsConnected ? '#2e7d32' : '#d32f2f',
+    margin: '10px 0',
+    fontSize: '0.9rem',
+  };
+
+  const toggleLinkStyle = {
+    marginTop: '12px',
+    cursor: 'pointer',
+    color: '#007bff',
+    fontSize: '0.9rem',
+    textDecoration: 'underline',
+  };
 
   return (
     <div style={backgroundStyle}>
       <form onSubmit={handleSubmit} style={formStyle}>
-        <h2 style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem' }}>
           {isRegistering ? 'Register' : 'Login'}
         </h2>
         <input
@@ -139,19 +209,19 @@ const LoginForm = ({ onLoginSuccess }) => {
           disabled={loading}
         />
         {error && <p style={errorStyle}>{error}</p>}
+        {wsMessage && <p style={wsMessageStyle}>{wsMessage}</p>}
         <button type="submit" style={buttonStyle} disabled={loading}>
-          {loading
-            ? isRegistering
-              ? 'Registering...'
-              : 'Logging in...'
-            : isRegistering
-            ? 'Register'
-            : 'Login'}
+          {loading ? (
+            <span>
+              {isRegistering ? 'Registering...' : 'Logging in...'} <span>⏳</span>
+            </span>
+          ) : isRegistering ? (
+            'Register'
+          ) : (
+            'Login'
+          )}
         </button>
-        <p
-          style={{ marginTop: '12px', cursor: 'pointer', color: '#007bff' }}
-          onClick={toggleMode}
-        >
+        <p style={toggleLinkStyle} onClick={toggleMode}>
           {isRegistering ? 'Already have an account? Login' : 'No account? Register'}
         </p>
       </form>
