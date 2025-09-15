@@ -24,7 +24,7 @@ if (!PORT) throw new Error('PORT is not defined in .env');
 // ---------------------
 const allowedOrigins = [
   'http://localhost:3000', // local dev
-  FRONTEND_URL.replace(/\/$/, ''), // deployed frontend: https://sevas-laundry-frontend.onrender.com
+  FRONTEND_URL.replace(/\/$/, ''), // deployed frontend
 ];
 
 console.log('Allowed origins:', allowedOrigins);
@@ -36,7 +36,6 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g., mobile apps, Postman) or from allowed origins
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -47,9 +46,13 @@ app.use(
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
-    optionsSuccessStatus: 200, // Ensure preflight requests return 200
+    optionsSuccessStatus: 200,
   })
 );
+
+// Handle preflight OPTIONS requests globally
+app.options('*', cors());
+
 app.use(express.json());
 
 // ---------------------
@@ -110,14 +113,13 @@ const verifyToken = (req, res, next) => {
 // ---------------------
 // Routes
 // ---------------------
-app.get('/', (req, res) => {
-  res.send('🚀 Laundry backend is running!');
-});
+app.get('/', (req, res) => res.send('🚀 Laundry backend is running!'));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Server is running' });
-});
+// Health endpoint
+app.get('/health', (req, res) => res.status(200).json({ status: 'OK', message: 'Server is running' }));
+
+// Status endpoint (frontend polling)
+app.get('/status', (req, res) => res.status(200).json({ status: 'OK', message: 'Server is running' }));
 
 // Register
 app.post('/register', async (req, res) => {
@@ -241,7 +243,6 @@ wss.on('connection', (ws, req) => {
   const origin = req.headers.origin?.replace(/\/$/, '') || '';
   console.log(`WebSocket connection attempt from: ${origin || 'none'}`);
 
-  // Allow connections from allowed origins or no origin (e.g., testing tools)
   if (origin && !allowedOrigins.includes(origin)) {
     console.warn(`WebSocket connection rejected: Invalid origin ${origin}`);
     ws.close(1008, 'Origin not allowed');
@@ -249,7 +250,6 @@ wss.on('connection', (ws, req) => {
   }
 
   console.log('WebSocket client connected');
-
   ws.send(JSON.stringify({ type: 'WELCOME', message: 'Connected to WebSocket server' }));
 
   ws.on('message', (message) => {
