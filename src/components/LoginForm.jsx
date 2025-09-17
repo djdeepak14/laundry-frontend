@@ -12,24 +12,48 @@ const LoginForm = ({ onLoginSuccess }) => {
   const [wsConnected, setWsConnected] = useState(false);
 
   // API URL from environment variables
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://sevas-laundry-backend.onrender.com';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   console.log('API URL:', API_BASE_URL);
 
   // Simulate WebSocket with HTTP polling
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/status`);
-        setWsMessage(`Update: ${JSON.stringify(res.data)}`);
-        setWsConnected(true);
-      } catch (err) {
-        setWsMessage('Unable to fetch updates from backend.');
-        setWsConnected(false);
-        console.error(err);
-      }
-    }, 2000);
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 5000; // 5 seconds between retries
 
-    return () => clearInterval(interval);
+    const checkServerStatus = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/status`, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 5000, // 5-second timeout for status check
+        });
+        setWsMessage(`Server Status: ${JSON.stringify(res.data)}`);
+        setWsConnected(true);
+        setError('');
+        retryCount = 0; // Reset retry count on success
+      } catch (err) {
+        console.error('AxiosError:', {
+          message: err.message,
+          code: err.code,
+          status: err.response?.status,
+          data: err.response?.data,
+        });
+        if (retryCount < maxRetries) {
+          retryCount++;
+          setWsMessage(`Retrying server connection (${retryCount}/${maxRetries})...`);
+          setTimeout(checkServerStatus, retryDelay); // Retry after delay
+        } else {
+          setWsMessage('Unable to connect to backend server. Please try again later.');
+          setWsConnected(false);
+          setError('Network error: Unable to connect to the server.');
+        }
+      }
+    };
+
+    checkServerStatus();
+    const interval = setInterval(checkServerStatus, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(interval); // Cleanup interval on unmount
   }, [API_BASE_URL]);
 
   const toggleMode = () => {
@@ -193,7 +217,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         />
         {error && <p style={errorStyle}>{error}</p>}
         {wsMessage && <p style={wsMessageStyle}>{wsMessage}</p>}
-        <button type="submit" style={buttonStyle} disabled={loading}>
+        <button type="submit" style={buttonStyle} disabled={loading || !wsConnected}>
           {loading ? (
             <span>
               {isRegistering ? 'Registering...' : 'Logging in...'} <span>⏳</span>

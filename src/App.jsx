@@ -6,6 +6,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import "./App.css";
+import AdminDashboard from './pages/AdminDashboard';
 
 import HomePage from "./components/HomePage";
 import LaundryBookingPage from "./components/LaundryBookingPage";
@@ -303,6 +304,7 @@ const AppRoutes = () => {
           )
         }
       />
+      <Route path="/admin" element={<AdminDashboard />} />
     </Routes>
   );
 };

@@ -4,11 +4,12 @@ import axios from 'axios';
 // Axios instance
 // ---------------------
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001', // uses .env in prod, fallback for local
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 seconds
+  timeout: 10000,
+  withCredentials: true,
 });
 
 // ---------------------
@@ -21,33 +22,38 @@ const setAuthHeader = (token) => ({
 });
 
 // ---------------------
+// Status API
+// ---------------------
+export const checkStatus = async () => {
+  try {
+    const response = await API.get('/status');
+    return response.data;
+  } catch (err) {
+    console.error('Status check error:', err.response?.status, err.response?.data?.message || err.message);
+    throw new Error(err.response?.data?.message || 'Failed to check status');
+  }
+};
+
+// ---------------------
 // Auth APIs
 // ---------------------
 export const loginUser = async (username, password) => {
   try {
-    const response = await API.post('/login', {
-      username: username.trim(),
-      password: password.trim(),
-    });
+    const response = await API.post('/login', { username: username.trim(), password: password.trim() });
     return response.data;
   } catch (err) {
-    const message = err.response?.data?.message || 'Login failed';
-    console.error('Login error:', message);
-    throw new Error(message);
+    console.error('Login error:', err.response?.status, err.response?.data?.message || err.message);
+    throw new Error(err.response?.data?.message || 'Login failed');
   }
 };
 
 export const registerUser = async (username, password) => {
   try {
-    const response = await API.post('/register', {
-      username: username.trim(),
-      password: password.trim(),
-    });
+    const response = await API.post('/register', { username: username.trim(), password: password.trim() });
     return response.data;
   } catch (err) {
-    const message = err.response?.data?.message || 'Registration failed';
-    console.error('Register error:', message);
-    throw new Error(message);
+    console.error('Register error:', err.response?.status, err.response?.data?.message || err.message);
+    throw new Error(err.response?.data?.message || 'Registration failed');
   }
 };
 
@@ -59,9 +65,8 @@ export const getBookings = async (token) => {
     const response = await API.get('/bookings', setAuthHeader(token));
     return response.data;
   } catch (err) {
-    const message = err.response?.data?.message || 'Failed to fetch bookings';
-    console.error('Get bookings error:', message);
-    throw new Error(message);
+    console.error('Get bookings error:', err.response?.status, err.response?.data?.message || err.message);
+    throw new Error(err.response?.data?.message || 'Failed to fetch bookings');
   }
 };
 
@@ -70,9 +75,8 @@ export const createBooking = async (booking, token) => {
     const response = await API.post('/bookings', booking, setAuthHeader(token));
     return response.data;
   } catch (err) {
-    const message = err.response?.data?.message || 'Failed to create booking';
-    console.error('Create booking error:', message);
-    throw new Error(message);
+    console.error('Create booking error:', err.response?.status, err.response?.data?.message || err.message);
+    throw new Error(err.response?.data?.message || 'Failed to create booking');
   }
 };
 
@@ -81,8 +85,7 @@ export const deleteBooking = async (id, token) => {
     const response = await API.delete(`/bookings/${id}`, setAuthHeader(token));
     return response.data;
   } catch (err) {
-    const message = err.response?.data?.message || 'Failed to delete booking';
-    console.error('Delete booking error:', message);
-    throw new Error(message);
+    console.error('Delete booking error:', err.response?.status, err.response?.data?.message || err.message);
+    throw new Error(err.response?.data?.message || 'Failed to delete booking');
   }
 };
