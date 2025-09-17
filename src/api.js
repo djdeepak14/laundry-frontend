@@ -4,16 +4,16 @@ import axios from 'axios';
 // Axios instance
 // ---------------------
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL, // Must be set in .env.production
+  baseURL: process.env.REACT_APP_API_URL, // Must be set in .env at project root
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 10000,
-  withCredentials: true,
+  withCredentials: true, // Needed if backend uses cookies
 });
 
 // ---------------------
-// Auth header helper
+// Auth header helper (JWT)
 // ---------------------
 const setAuthHeader = (token) => ({
   headers: {
@@ -124,5 +124,9 @@ export const deleteBooking = async (id, token) => {
 // WebSocket helper
 // ---------------------
 export const getWebSocket = () => {
+  if (!process.env.REACT_APP_WS_URL) {
+    console.warn('REACT_APP_WS_URL is not defined in .env');
+    return null;
+  }
   return new WebSocket(process.env.REACT_APP_WS_URL);
 };
