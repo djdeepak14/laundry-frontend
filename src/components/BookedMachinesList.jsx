@@ -1,53 +1,38 @@
 import React from 'react';
-import axios from 'axios';
 
-const API_URL = 'https://laundry-backend-8x1e.onrender.com'; // replace with your backend URL
-
-const BookedMachinesList = ({ weekBookings, onBookingCancelled }) => {
-
-  // Cancel booking function
-  const handleUnbook = async (bookingId) => {
-    if (!bookingId) return;
-
-    try {
-      const token = localStorage.getItem('token'); // Ensure token is stored
-      await axios.delete(`${API_URL}/bookings/${bookingId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      alert('Booking cancelled successfully!');
-      // Call parent function to refresh bookings
-      onBookingCancelled(bookingId);
-
-    } catch (error) {
-      console.error('Delete booking error:', error.response?.data || error.message);
-      alert('Failed to cancel booking. Check console for details.');
-    }
-  };
+const BookedMachinesList = ({ weekBookings, handleUnbook, selectedWeekKey }) => {
+  if (!weekBookings || weekBookings.length === 0) {
+    return (
+      <div className="p-4 bg-white rounded-xl shadow max-w-lg mx-auto">
+        <h2 className="text-lg font-bold mb-4">Week: {selectedWeekKey}</h2>
+        <p>No bookings for this week.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 bg-white rounded-xl shadow">
-      <h2 className="text-lg font-bold mb-2">Booked Machines</h2>
-
-      {weekBookings.length === 0 ? (
-        <p>No bookings yet.</p>
-      ) : (
-        <ul>
-          {weekBookings.map((booking) => (
-            <li key={booking._id} className="mb-2">
-              {new Date(booking.date).toLocaleDateString()} - {booking.machine} ({booking.machineType}) - {booking.dayName}
-              <button
-                onClick={() => handleUnbook(booking._id)}
-                className="ml-2 text-red-600 underline"
-              >
-                Cancel
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="p-4 bg-white rounded-xl shadow max-w-lg mx-auto">
+      <h2 className="text-lg font-bold mb-4">Bookings for week: {selectedWeekKey}</h2>
+      <ul className="space-y-3">
+        {weekBookings.map((booking) => (
+          <li
+            key={booking._id}
+            className="p-3 border border-gray-300 rounded flex justify-between items-center"
+          >
+            <div>
+              <div><strong>Date:</strong> {new Date(booking.date).toLocaleDateString()}</div>
+              <div><strong>Machine:</strong> {booking.machine} ({booking.machineType})</div>
+              <div><strong>Day:</strong> {booking.dayName}</div>
+            </div>
+            <button
+              onClick={() => handleUnbook(booking._id)}
+              className="ml-4 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Cancel
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };

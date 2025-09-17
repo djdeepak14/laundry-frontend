@@ -68,6 +68,7 @@ export const getBookings = async (token) => {
 
 export const createBooking = async (booking, token) => {
   try {
+    console.log('Creating booking:', booking);
     const { data } = await API.post('/bookings', booking, setAuthHeader(token));
     return data;
   } catch (err) {
@@ -78,6 +79,7 @@ export const createBooking = async (booking, token) => {
 
 export const deleteBooking = async (id, token) => {
   try {
+    console.log('Deleting booking id:', id);
     const { data } = await API.delete(`/bookings/${id}`, setAuthHeader(token));
     return data;
   } catch (err) {

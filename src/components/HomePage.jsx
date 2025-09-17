@@ -1,20 +1,17 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CalendarGrid from './CalendarGrid';
-import BookedMachinesList from './BookedMachinesList';
 import CalendarHeader from './CalendarHeader';
-import MachineBookingCard from './MachineBookingCard';
 import logo from '../assets/Sevas.png';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
-  
+
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
-  
+
   render() {
     if (this.state.hasError) {
       console.error('HomePage ErrorBoundary caught:', this.state.error);
@@ -28,21 +25,10 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-const getDaysInMonth = (year, month) => {
-  if (typeof year !== 'number' || typeof month !== 'number') {
-    console.error('Invalid year or month:', { year, month });
-    return 30; // Fallback
-  }
-  return new Date(year, month + 1, 0).getDate();
-};
+const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
-const getFirstDayOfMonth = (year, month) => {
-  if (typeof year !== 'number' || typeof month !== 'number') {
-    console.error('Invalid year or month:', { year, month });
-    return 0; // Fallback
-  }
-  return new Date(year, month, 1).getDay();
-};
+const monthShortNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const HomePage = ({
   today,
@@ -57,8 +43,6 @@ const HomePage = ({
   weekBookings = [],
   handleDayClick,
   handleMonthChange,
-  toggleBooking,
-  handleUnbook,
   months = [],
   weekdays = [],
   handleLogout,
@@ -67,14 +51,8 @@ const HomePage = ({
   const [currentDate, setCurrentDate] = useState(new Date());
 
   useEffect(() => {
-    console.log('HomePage.jsx: Mounting component');
-    const timer = setInterval(() => {
-      setCurrentDate(new Date());
-    }, 1000);
-    return () => {
-      console.log('HomePage.jsx: Unmounting component');
-      clearInterval(timer);
-    };
+    const timer = setInterval(() => setCurrentDate(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
@@ -84,56 +62,61 @@ const HomePage = ({
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
-  console.log('HomePage.jsx: Render props:', {
-    handleLogout: typeof handleLogout,
-    currentMonth,
-    currentYear,
-    weekBookings: weekBookings.length,
-    calendarCells: calendarCells.length,
-    today,
-    selectedDay,
-    bookings: Object.keys(bookings).length,
-    selectedWeekKey,
-  });
-
   return (
     <ErrorBoundary>
-      <div className="container">
-        {/* Fallback Render */}
-        <div style={{ textAlign: 'center', margin: '20px' }}>
-          <h1>Sevas Laundry Booking</h1>
-          {weekBookings.length === 0 && <p>No bookings available. Try booking laundry or logging out.</p>}
-        </div>
-
-        {/* Logo and Titles */}
-        <div className="landing-center">
-          <img src={logo} alt="Sevas Laundry Logo" className="landing-logo" />
-          <h1 className="app-title">Sevas Laundry Booking</h1>
-          <p className="current-date-time">
+      <div className="container flex flex-col items-center m-4">
+        {/* Logo + Current Date/Time */}
+        <div className="landing-center mb-4 text-center">
+          <img src={logo} alt="Sevas Laundry Logo" className="landing-logo mb-2" />
+          <h1 className="app-title mb-1">Sevas Laundry Booking</h1>
+          <p className="current-date-time text-gray-700">
             <span className="date">{currentDate.toLocaleDateString()}</span>
             <br />
             <span className="time">{currentDate.toLocaleTimeString()}</span>
           </p>
         </div>
 
+        {/* Booked Laundry Box */}
+        <div className="booked-laundry-box bg-white rounded-xl shadow p-4 w-full max-w-md mb-4">
+          <h2 className="text-lg font-bold mb-3 border-b pb-1">Booked Laundry</h2>
+          {weekBookings.length === 0 ? (
+            <p className="text-gray-500">No bookings this week.</p>
+          ) : (
+            <table className="w-full border-collapse border border-gray-300 text-sm text-left">
+              <thead className="bg-gray-200">
+                <tr>
+                  <th className="border border-gray-300 px-2 py-1">Date</th>
+                  <th className="border border-gray-300 px-2 py-1">Day</th>
+                  <th className="border border-gray-300 px-2 py-1">Machine</th>
+                </tr>
+              </thead>
+              <tbody>
+                {weekBookings.map((b) => {
+                  const dateObj = new Date(b.date);
+                  const shortMonth = monthShortNames[dateObj.getMonth()];
+                  const dayNum = dateObj.getDate();
+                  return (
+                    <tr key={b.id || b._id || b.slotId} className="bg-blue-50">
+                      <td className="border border-gray-300 px-2 py-1">{shortMonth} {dayNum}</td>
+                      <td className="border border-gray-300 px-2 py-1">{b.dayName}</td>
+                      <td className="border border-gray-300 px-2 py-1">{b.machine}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
         {/* Buttons */}
-        <div className="home-laundry-buttons">
-          <button className="home-button" onClick={() => navigate('/')}>
-            Home
-          </button>
-          <button className="book-laundry-button" onClick={() => navigate('/laundry')}>
-            Book Laundry
-          </button>
+        <div className="home-laundry-buttons mb-4">
+          <button className="home-button mr-2" onClick={() => navigate('/')}>Home</button>
+          <button className="book-laundry-button mr-2" onClick={() => navigate('/laundry')}>Book Laundry</button>
           <button
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
             onClick={() => {
-              console.log('HomePage.jsx: Logout button clicked');
-              if (typeof handleLogout === 'function') {
-                handleLogout();
-              } else {
-                console.error('HomePage.jsx: handleLogout is not a function');
-                navigate('/login', { replace: true });
-              }
+              if (typeof handleLogout === 'function') handleLogout();
+              else navigate('/login', { replace: true });
             }}
           >
             Logout
@@ -141,71 +124,26 @@ const HomePage = ({
         </div>
 
         {/* Calendar Header */}
-        {months.length > 0 && handleMonthChange ? (
-          <ErrorBoundary>
-            <CalendarHeader
-              currentMonth={currentMonth}
-              currentYear={currentYear}
-              months={months}
-              onChange={handleMonthChange}
-            />
-          </ErrorBoundary>
-        ) : (
-          <p>Calendar header unavailable.</p>
+        {months.length > 0 && handleMonthChange && (
+          <CalendarHeader
+            currentMonth={currentMonth}
+            currentYear={currentYear}
+            months={months}
+            onChange={handleMonthChange}
+          />
         )}
 
         {/* Calendar Grid */}
-        {weekdays.length > 0 && handleDayClick ? (
-          <ErrorBoundary>
-            <CalendarGrid
-              weekdays={weekdays}
-              calendarDays={calendarCells}
-              today={today}
-              selectedDay={selectedDay}
-              currentMonth={currentMonth}
-              currentYear={currentYear}
-              onDayClick={(day) => {
-                console.log('HomePage.jsx: Day clicked:', day);
-                handleDayClick(day);
-                navigate('/laundry');
-              }}
-            />
-          </ErrorBoundary>
-        ) : (
-          <p>Calendar grid unavailable.</p>
-        )}
-
-        {/* Week Bookings */}
-        {weekBookings.length > 0 ? (
-          <div className="week-bookings-cards">
-            <ErrorBoundary>
-              {weekBookings.map((b) => (
-                <MachineBookingCard
-                  key={b.id || b.slotId}
-                  booking={b}
-                  onUnbook={() => {
-                    console.log('HomePage.jsx: Unbooking:', b.id);
-                    handleUnbook(selectedWeekKey, b.id);
-                  }}
-                />
-              ))}
-            </ErrorBoundary>
-          </div>
-        ) : (
-          <p>No bookings for this week.</p>
-        )}
-
-        {/* Booked Machines List */}
-        {handleUnbook ? (
-          <ErrorBoundary>
-            <BookedMachinesList
-              weekBookings={weekBookings}
-              selectedWeekKey={selectedWeekKey}
-              handleUnbook={handleUnbook}
-            />
-          </ErrorBoundary>
-        ) : (
-          <p>Booked machines list unavailable.</p>
+        {weekdays.length > 0 && handleDayClick && (
+          <CalendarGrid
+            weekdays={weekdays}
+            calendarDays={calendarCells}
+            today={today}
+            selectedDay={selectedDay}
+            currentMonth={currentMonth}
+            currentYear={currentYear}
+            onDayClick={(day) => handleDayClick(day)}
+          />
         )}
       </div>
     </ErrorBoundary>
