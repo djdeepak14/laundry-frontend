@@ -203,9 +203,11 @@ const AppRoutes = () => {
 
   // Unbook a booking by _id
   const handleUnbook = async (bookingId) => {
-    if (!token) return;
+    if (!token || !bookingId) return;
+
     try {
-      await deleteBooking(bookingId, token);
+      await deleteBooking(bookingId, token); // backend DELETE by _id
+
       // Remove booking from state
       setBookings((prev) => {
         const updated = { ...prev };
@@ -214,6 +216,7 @@ const AppRoutes = () => {
         });
         return updated;
       });
+
       // Remove from selectedSlots
       setSelectedSlots((prev) => {
         const updated = { ...prev };
@@ -222,6 +225,8 @@ const AppRoutes = () => {
         });
         return updated;
       });
+
+      alert("Booking cancelled successfully!");
     } catch (err) {
       console.error('Delete booking error:', err.response?.data || err.message);
       alert("Failed to cancel booking. Check console for details.");
