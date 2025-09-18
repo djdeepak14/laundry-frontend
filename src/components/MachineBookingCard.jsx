@@ -1,13 +1,45 @@
-import React from 'react';
+import React from "react";
 
-const MachineBookingCard = ({ booking }) => {
+const BookingsTable = ({ bookings }) => {
   return (
-    <div className="p-3 mb-2 border-l-4 border-blue-500 bg-blue-50 rounded shadow">
-      <div><strong>Date:</strong> {new Date(booking.date).toLocaleDateString()}</div>
-      <div><strong>Machine:</strong> {booking.machine} ({booking.machineType})</div>
-      <div><strong>Day:</strong> {booking.dayName}</div>
+    <div className="overflow-x-auto mt-4">
+      <table className="min-w-full bg-white border border-gray-200 shadow rounded">
+        <thead>
+          <tr className="bg-blue-500 text-white">
+            <th className="py-2 px-4 border">Date</th>
+            <th className="py-2 px-4 border">Day</th>
+            <th className="py-2 px-4 border">Machine</th>
+            <th className="py-2 px-4 border">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bookings.length === 0 ? (
+            <tr>
+              <td colSpan="4" className="text-center py-4">
+                No bookings yet.
+              </td>
+            </tr>
+          ) : (
+            bookings.map((booking, index) => (
+              <tr
+                key={index}
+                className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}
+              >
+                <td className="py-2 px-4 border">
+                  {new Date(booking.date).toLocaleDateString()}
+                </td>
+                <td className="py-2 px-4 border">{booking.dayName}</td>
+                <td className="py-2 px-4 border">
+                  {booking.machine} ({booking.machineType})
+                </td>
+                <td className="py-2 px-4 border">{booking.time}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };
 
-export default MachineBookingCard;
+export default BookingsTable;

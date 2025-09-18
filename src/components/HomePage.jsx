@@ -27,8 +27,16 @@ class ErrorBoundary extends React.Component {
 
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
-
 const monthShortNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Define slot times
+const slotTimes = [
+  '8:00 - 9:00', '9:00 - 10:00', '10:00 - 11:00',
+  '11:00 - 12:00', '12:00 - 13:00', '13:00 - 14:00',
+  '14:00 - 15:00', '15:00 - 16:00', '16:00 - 17:00',
+  '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00',
+  '20:00 - 21:00', '21:00 - 22:00'
+];
 
 const HomePage = ({
   today,
@@ -62,6 +70,26 @@ const HomePage = ({
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
+  // Map bookings to handle concatenated machine and time fields
+  const mappedBookings = weekBookings.map((b, index) => {
+    let machine = b.machine || '';
+    let slotTime = b.slotTime || b.time || slotTimes[index % slotTimes.length];
+
+    // Check if machine field contains time data (e.g., "Washer 18:00 - 9:00")
+    if (machine.includes(':')) {
+      const parts = machine.split(/(?=\d{1,2}:\d{2})/); // Split before time format (e.g., 8:00)
+      machine = parts[0].trim(); // e.g., "Washer 1"
+      slotTime = parts.slice(1).join('').trim(); // e.g., "8:00 - 9:00"
+    }
+
+    return {
+      ...b,
+      machine: machine || `Machine ${index + 1}`, // Fallback if machine is empty
+      slotTime,
+      dayName: b.dayName || new Date(b.date).toLocaleDateString('en-US', { weekday: 'short' }),
+    };
+  });
+
   return (
     <ErrorBoundary>
       <div className="container flex flex-col items-center m-4">
@@ -79,27 +107,27 @@ const HomePage = ({
         {/* Booked Laundry Box */}
         <div className="booked-laundry-box bg-white rounded-xl shadow p-4 w-full max-w-md mb-4">
           <h2 className="text-lg font-bold mb-3 border-b pb-1">Booked Laundry</h2>
-          {weekBookings.length === 0 ? (
+          {mappedBookings.length === 0 ? (
             <p className="text-gray-500">No bookings this week.</p>
           ) : (
             <table className="w-full border-collapse border border-gray-300 text-sm text-left">
               <thead className="bg-gray-200">
                 <tr>
-                  <th className="border border-gray-300 px-2 py-1">Date</th>
-                  <th className="border border-gray-300 px-2 py-1">Day</th>
-                  <th className="border border-gray-300 px-2 py-1">Machine</th>
+                  <th className="border border-gray-300 px-6 py-2 min-w-[150px]">Date & Machine</th>
+                  <th className="border border-gray-300 px-6 py-2 min-w-[120px]">Time</th>
                 </tr>
               </thead>
               <tbody>
-                {weekBookings.map((b) => {
+                {mappedBookings.map((b, index) => {
                   const dateObj = new Date(b.date);
                   const shortMonth = monthShortNames[dateObj.getMonth()];
                   const dayNum = dateObj.getDate();
                   return (
-                    <tr key={b.id || b._id || b.slotId} className="bg-blue-50">
-                      <td className="border border-gray-300 px-2 py-1">{shortMonth} {dayNum}</td>
-                      <td className="border border-gray-300 px-2 py-1">{b.dayName}</td>
-                      <td className="border border-gray-300 px-2 py-1">{b.machine}</td>
+                    <tr key={b.id || b._id || index} className="bg-blue-50">
+                      <td className="border border-gray-300 px-6 py-2">
+                        {shortMonth} {dayNum} = {b.machine} =
+                      </td>
+                      <td className="border border-gray-300 px-6 py-2">{b.slotTime}</td>
                     </tr>
                   );
                 })}
