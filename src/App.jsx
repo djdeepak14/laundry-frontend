@@ -47,8 +47,8 @@ const AppRoutes = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [bookings, setBookings] = useState({});
   const [selectedSlots, setSelectedSlots] = useState({});
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
+  const [token, setToken] = useState(localStorage.getItem("token"));
   const navigate = useNavigate();
 
   const effectiveSelectedDay = selectedDay || {
@@ -70,7 +70,9 @@ const AppRoutes = () => {
     return { totalBookings: weekBookings.length, washerCount, dryerCount };
   };
 
+  // ---------------------
   // Fetch bookings from backend
+  // ---------------------
   useEffect(() => {
     if (!token) return;
     const fetchData = async () => {
@@ -89,12 +91,21 @@ const AppRoutes = () => {
         setBookings(updatedBookings);
         setSelectedSlots(updatedSelectedSlots);
       } catch (err) {
-        console.error('Fetch bookings error:', err.response?.data || err.message);
+        const message =
+          err.response?.data?.message ||
+          (err.code === "ECONNABORTED"
+            ? "Request timed out. Please try again."
+            : err.message || "Failed to fetch bookings");
+
+        console.error("Fetch bookings error:", message);
+
         if (err.response?.status === 401) {
           setIsLoggedIn(false);
           setToken(null);
-          localStorage.removeItem('token');
+          localStorage.removeItem("token");
           navigate("/login");
+        } else {
+          alert(message);
         }
       }
     };
@@ -102,10 +113,13 @@ const AppRoutes = () => {
     fetchData();
   }, [token, navigate]);
 
+  // ---------------------
+  // Auth helpers
+  // ---------------------
   const handleLoginSuccess = async (token, userId) => {
     setToken(token);
-    localStorage.setItem('token', token);
-    localStorage.setItem('userId', userId);
+    localStorage.setItem("token", token);
+    localStorage.setItem("userId", userId);
     setIsLoggedIn(true);
     navigate("/");
   };
@@ -113,11 +127,14 @@ const AppRoutes = () => {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('userId');
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
     navigate("/login");
   };
 
+  // ---------------------
+  // Calendar navigation
+  // ---------------------
   const handleMonthChange = (direction) => {
     let newMonth = currentMonth + direction;
     let newYear = currentYear;
@@ -139,7 +156,9 @@ const AppRoutes = () => {
     navigate("/laundry");
   };
 
+  // ---------------------
   // Book / Unbook toggle
+  // ---------------------
   const toggleBooking = async (slotId, machine, machineType) => {
     if (!effectiveSelectedDay || !token) return;
 
@@ -152,7 +171,7 @@ const AppRoutes = () => {
       const booking = weekBookings.find((b) => b.slotId === slotId);
       if (booking) {
         try {
-          await deleteBooking(booking._id, token); // <-- use _id
+          await deleteBooking(booking._id, token);
           setBookings((prev) => ({
             ...prev,
             [weekKey]: prev[weekKey].filter((b) => b.slotId !== slotId),
@@ -163,8 +182,14 @@ const AppRoutes = () => {
             return updated;
           });
         } catch (err) {
-          console.error('Delete booking error:', err.response?.data || err.message);
-          alert("Failed to cancel booking. Check console for details.");
+          const message =
+            err.response?.data?.message ||
+            (err.code === "ECONNABORTED"
+              ? "Request timed out. Please try again."
+              : err.message || "Failed to cancel booking");
+
+          console.error("Delete booking error:", message);
+          alert(message);
         }
       }
     } else {
@@ -195,20 +220,26 @@ const AppRoutes = () => {
         }));
         setSelectedSlots((prev) => ({ ...prev, [slotId]: true }));
       } catch (err) {
-        console.error('Create booking error:', err.response?.data || err.message);
-        alert("Failed to create booking. Check console for details.");
+        const message =
+          err.response?.data?.message ||
+          (err.code === "ECONNABORTED"
+            ? "Request timed out. Please try again."
+            : err.message || "Failed to create booking");
+
+        console.error("Create booking error:", message);
+        alert(message);
       }
     }
   };
 
-  // Unbook a booking by _id
+  // ---------------------
+  // Unbook by ID
+  // ---------------------
   const handleUnbook = async (bookingId) => {
     if (!token || !bookingId) return;
 
     try {
-      await deleteBooking(bookingId, token); // backend DELETE by _id
-
-      // Remove booking from state
+      await deleteBooking(bookingId, token);
       setBookings((prev) => {
         const updated = { ...prev };
         Object.keys(updated).forEach((weekKey) => {
@@ -216,8 +247,6 @@ const AppRoutes = () => {
         });
         return updated;
       });
-
-      // Remove from selectedSlots
       setSelectedSlots((prev) => {
         const updated = { ...prev };
         Object.keys(updated).forEach((slotId) => {
@@ -225,14 +254,22 @@ const AppRoutes = () => {
         });
         return updated;
       });
-
       alert("Booking cancelled successfully!");
     } catch (err) {
-      console.error('Delete booking error:', err.response?.data || err.message);
-      alert("Failed to cancel booking. Check console for details.");
+      const message =
+        err.response?.data?.message ||
+        (err.code === "ECONNABORTED"
+          ? "Request timed out. Please try again."
+          : err.message || "Failed to cancel booking");
+
+      console.error("Delete booking error:", message);
+      alert(message);
     }
   };
 
+  // ---------------------
+  // Derived state
+  // ---------------------
   const selectedWeekKey = getWeekKey(effectiveSelectedDay.date);
   const weekBookings = bookings[selectedWeekKey] || [];
   const timeSlots = useMemo(
@@ -240,6 +277,9 @@ const AppRoutes = () => {
     []
   );
 
+  // ---------------------
+  // Routes
+  // ---------------------
   return (
     <Routes>
       <Route
@@ -314,8 +354,6 @@ const AppRoutes = () => {
   );
 };
 
-const App = () => (
-  <AppRoutes />
-);
+const App = () => <AppRoutes />;
 
 export default App;

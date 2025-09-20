@@ -1,11 +1,11 @@
-import axios from 'axios';
+import axios from "axios";
 
 // ---------------------
 // Axios instance
 // ---------------------
 const API = axios.create({
   baseURL: process.env.REACT_APP_API_URL, // Must be set in .env
-  headers: { 'Content-Type': 'application/json' },
+  headers: { "Content-Type": "application/json" },
   timeout: 10000,
   withCredentials: true, // Needed if backend uses cookies/auth
 });
@@ -14,7 +14,7 @@ const API = axios.create({
 // Automatically attach JWT if in localStorage
 // ---------------------
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -22,26 +22,19 @@ API.interceptors.request.use((config) => {
 });
 
 // ---------------------
-// JWT Auth helper (still usable for manual calls)
-// ---------------------
-const setAuthHeader = (token) => ({
-  headers: { Authorization: `Bearer ${token}` },
-});
-
-// ---------------------
 // Status API
 // ---------------------
 export const checkStatus = async () => {
   try {
-    const { data } = await API.get('/status');
+    const { data } = await API.get("/status");
     return data;
   } catch (err) {
     console.error(
-      'Status check error:',
+      "Status check error:",
       err.response?.status,
       err.response?.data?.message || err.message
     );
-    throw new Error(err.response?.data?.message || 'Failed to check status');
+    throw new Error(err.response?.data?.message || "Failed to check status");
   }
 };
 
@@ -50,93 +43,86 @@ export const checkStatus = async () => {
 // ---------------------
 export const loginUser = async (username, password) => {
   try {
-    const { data } = await API.post('/login', {
+    const { data } = await API.post("/login", {
       username: username.trim(),
       password: password.trim(),
     });
     // Save token automatically
     if (data?.token) {
-      localStorage.setItem('token', data.token);
+      localStorage.setItem("token", data.token);
     }
     return data;
   } catch (err) {
     console.error(
-      'Login error:',
+      "Login error:",
       err.response?.status,
       err.response?.data?.message || err.message
     );
-    throw new Error(err.response?.data?.message || 'Login failed');
+    throw new Error(err.response?.data?.message || "Login failed");
   }
 };
 
 export const registerUser = async (username, password) => {
   try {
-    const { data } = await API.post('/register', {
+    const { data } = await API.post("/register", {
       username: username.trim(),
       password: password.trim(),
     });
     return data;
   } catch (err) {
     console.error(
-      'Register error:',
+      "Register error:",
       err.response?.status,
       err.response?.data?.message || err.message
     );
-    throw new Error(err.response?.data?.message || 'Registration failed');
+    throw new Error(err.response?.data?.message || "Registration failed");
   }
 };
 
 // ---------------------
 // Booking APIs
 // ---------------------
-export const getBookings = async (token) => {
+export const getBookings = async () => {
   try {
-    const { data } = await API.get('/bookings', token ? setAuthHeader(token) : {});
+    const { data } = await API.get("/bookings");
     return data;
   } catch (err) {
     console.error(
-      'Get bookings error:',
+      "Get bookings error:",
       err.response?.status,
       err.response?.data?.message || err.message
     );
-    throw new Error(err.response?.data?.message || 'Failed to fetch bookings');
+    throw new Error(err.response?.data?.message || "Failed to fetch bookings");
   }
 };
 
-export const createBooking = async (booking, token) => {
+export const createBooking = async (booking) => {
   try {
-    console.log('Creating booking:', booking);
-    const { data } = await API.post(
-      '/bookings',
-      booking,
-      token ? setAuthHeader(token) : {}
-    );
+    console.log("Creating booking:", booking);
+    const { data } = await API.post("/bookings", booking);
     return data;
   } catch (err) {
     console.error(
-      'Create booking error:',
+      "Create booking error:",
       err.response?.status,
       err.response?.data?.message || err.message
     );
-    throw new Error(err.response?.data?.message || 'Failed to create booking');
+    throw new Error(err.response?.data?.message || "Failed to create booking");
   }
 };
 
-export const deleteBooking = async (id, token) => {
+export const deleteBooking = async (id) => {
   try {
-    console.log('Deleting booking id:', id);
-    const { data } = await API.delete(
-      `/bookings/${id}`,
-      token ? setAuthHeader(token) : {}
-    );
+    console.log("Deleting booking id:", id);
+    const { data } = await API.delete(`/bookings/${id}`);
     return data;
   } catch (err) {
     console.error(
-      'Delete booking error:',
+      "Delete booking error:",
       err.response?.status,
       err.response?.data?.message || err.message
     );
-    throw new Error(err.response?.data?.message || 'Failed to delete booking');
+    throw new Error(err.response?.data?.message || "Failed to delete booking");
   }
 };
 
@@ -145,7 +131,7 @@ export const deleteBooking = async (id, token) => {
 // ---------------------
 export const getWebSocket = () => {
   if (!process.env.REACT_APP_WS_URL) {
-    console.warn('REACT_APP_WS_URL is not defined in .env');
+    console.warn("REACT_APP_WS_URL is not defined in .env");
     return null;
   }
   return new WebSocket(process.env.REACT_APP_WS_URL);
