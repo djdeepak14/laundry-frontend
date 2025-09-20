@@ -1,13 +1,13 @@
-import axios from "axios";
+import axios from 'axios';
 
 // ---------------------
 // Axios instance
 // ---------------------
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL, // Must be set in .env
+  baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api",
   headers: { "Content-Type": "application/json" },
-  timeout: 10000,
-  withCredentials: true, // Needed if backend uses cookies/auth
+  timeout: 20000, // more forgiving timeout
+  withCredentials: true,
 });
 
 // ---------------------
@@ -20,6 +20,25 @@ API.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// ---------------------
+// Global response handler for auth errors
+// ---------------------
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      error.response?.status === 401 &&
+      error.response?.data?.message?.toLowerCase().includes("invalid token")
+    ) {
+      console.warn("Invalid or expired token. Clearing localStorage...");
+      localStorage.removeItem("token");
+      // Redirect to login page on token expiration
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
 // ---------------------
 // Status API
@@ -47,7 +66,6 @@ export const loginUser = async (username, password) => {
       username: username.trim(),
       password: password.trim(),
     });
-    // Save token automatically
     if (data?.token) {
       localStorage.setItem("token", data.token);
     }

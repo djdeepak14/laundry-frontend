@@ -24,8 +24,8 @@ const months = [
 ];
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const machines = [
-  { name: "Washer1", type: "washer" },
-  { name: "Washer2", type: "washer" },
+  { name: "Washer 1", type: "washer" },
+  { name: "Washer 2", type: "washer" },
   { name: "Dryer1", type: "dryer" },
   { name: "Dryer2", type: "dryer" },
 ];
