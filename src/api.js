@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from "axios";
 
 // ---------------------
 // Axios instance
@@ -6,7 +6,7 @@ import axios from 'axios';
 const API = axios.create({
   baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api",
   headers: { "Content-Type": "application/json" },
-  timeout: 20000, // more forgiving timeout
+  timeout: 20000,
   withCredentials: true,
 });
 
@@ -33,7 +33,6 @@ API.interceptors.response.use(
     ) {
       console.warn("Invalid or expired token. Clearing localStorage...");
       localStorage.removeItem("token");
-      // Redirect to login page on token expiration
       window.location.href = "/login";
     }
     return Promise.reject(error);

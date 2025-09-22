@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import washerImg from '../assets/washer.jpg';
@@ -11,13 +12,11 @@ const LoginForm = ({ onLoginSuccess }) => {
   const [wsMessage, setWsMessage] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
 
-  // ✅ Use env variable for API base URL
-  const API_BASE_URL = process.env.REACT_APP_API_URL;
+  // Use env variable with fallback for API base URL
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://laundry-backend-8x1e.onrender.com';
   console.log('API URL:', API_BASE_URL);
 
-  // ---------------------
   // Poll backend status
-  // ---------------------
   useEffect(() => {
     let retryCount = 0;
     const maxRetries = 3;
@@ -25,6 +24,7 @@ const LoginForm = ({ onLoginSuccess }) => {
 
     const checkServerStatus = async () => {
       try {
+        // Try /status endpoint
         const res = await axios.get(`${API_BASE_URL}/status`, { timeout: 5000 });
         setWsMessage(`Server Status: ${JSON.stringify(res.data)}`);
         setWsConnected(true);
@@ -32,15 +32,34 @@ const LoginForm = ({ onLoginSuccess }) => {
         retryCount = 0;
       } catch (err) {
         console.error('AxiosError:', err.message, err.code, err.response?.status);
-        if (retryCount < maxRetries) {
-          retryCount++;
-          setWsMessage(`Retrying server connection (${retryCount}/${maxRetries})...`);
-          setTimeout(checkServerStatus, retryDelay);
+        if (err.response?.status === 404) {
+          // Fallback to root endpoint
+          try {
+            await axios.get(`${API_BASE_URL}/`, { timeout: 5000 });
+            setWsMessage('Server is up, but /status endpoint not found.');
+            setWsConnected(true);
+            setError('');
+            retryCount = 0;
+          } catch (fallbackErr) {
+            handleConnectionFailure(fallbackErr);
+          }
         } else {
-          setWsMessage('Unable to connect to backend server. Please try again later.');
-          setWsConnected(false);
-          setError('Network error: Unable to connect to the server.');
+          handleConnectionFailure(err);
         }
+      }
+    };
+
+    const handleConnectionFailure = (err) => {
+      if (err.code === 'ERR_NETWORK' || err.response?.status === 0) {
+        setWsMessage('CORS or network error. Please check backend CORS configuration.');
+      } else if (retryCount < maxRetries) {
+        retryCount++;
+        setWsMessage(`Retrying server connection (${retryCount}/${maxRetries})...`);
+        setTimeout(checkServerStatus, retryDelay);
+      } else {
+        setWsMessage('Unable to connect to backend server. Please try again later.');
+        setWsConnected(false);
+        setError('Network error: Unable to connect to the server.');
       }
     };
 
@@ -49,9 +68,7 @@ const LoginForm = ({ onLoginSuccess }) => {
     return () => clearInterval(interval);
   }, [API_BASE_URL]);
 
-  // ---------------------
   // Toggle login/register
-  // ---------------------
   const toggleMode = () => {
     setIsRegistering(!isRegistering);
     setError('');
@@ -59,9 +76,7 @@ const LoginForm = ({ onLoginSuccess }) => {
     setPassword('');
   };
 
-  // ---------------------
   // Submit handler
-  // ---------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -94,18 +109,21 @@ const LoginForm = ({ onLoginSuccess }) => {
       }
     } catch (err) {
       console.error('Request error:', err.message, err.response?.status, err.response?.data);
-      if (err.code === 'ERR_NETWORK') setError('Network error: Unable to connect to the server.');
-      else if (err.response?.status === 0) setError('CORS error: Backend did not allow request.');
-      else if (err.response?.status === 404) setError('Endpoint not found.');
-      else setError(err.response?.data?.message || err.message || 'Failed to connect to server.');
+      if (err.code === 'ERR_NETWORK') {
+        setError('Network error: Unable to connect to the server.');
+      } else if (err.response?.status === 0) {
+        setError('CORS error: Backend did not allow request.');
+      } else if (err.response?.status === 404) {
+        setError('Endpoint not found. Please verify the backend API.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to connect to server.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // ---------------------
   // Styles
-  // ---------------------
   const backgroundStyle = {
     backgroundImage: `url(${washerImg})`,
     backgroundSize: 'cover',
@@ -153,15 +171,31 @@ const LoginForm = ({ onLoginSuccess }) => {
   const wsMessageStyle = { color: wsConnected ? '#2e7d32' : '#d32f2f', margin: '10px 0', fontSize: '0.9rem' };
   const toggleLinkStyle = { marginTop: '12px', cursor: 'pointer', color: '#007bff', fontSize: '0.9rem', textDecoration: 'underline' };
 
-  // ---------------------
   // Render
-  // ---------------------
   return (
     <div style={backgroundStyle}>
       <form onSubmit={handleSubmit} style={formStyle}>
         <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem' }}>{isRegistering ? 'Register' : 'Login'}</h2>
-        <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} style={inputStyle} required disabled={loading} autoComplete="username"/>
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} required disabled={loading} autoComplete="current-password"/>
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          style={inputStyle}
+          required
+          disabled={loading}
+          autoComplete="username"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={inputStyle}
+          required
+          disabled={loading}
+          autoComplete="current-password"
+        />
         {error && <p style={errorStyle}>{error}</p>}
         {wsMessage && <p style={wsMessageStyle}>{wsMessage}</p>}
         <button type="submit" style={buttonStyle} disabled={loading || !wsConnected}>
