@@ -86,7 +86,7 @@ const LoginForm = ({ onLoginSuccess }) => {
     const payload = { username: username.trim(), password: password.trim() };
 
     try {
-      if (!payload.username || !payload.password) throw new Error('Username and password are required');
+      if (!payload.username || !payload.password) throw new Error('Username and password required');
       console.log('Sending to backend:', payload);
 
       const response = await axios.post(url, payload, { withCredentials: true, timeout: 10000 });
