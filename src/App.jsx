@@ -1,33 +1,23 @@
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  Routes,
-  Route,
-  useNavigate,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import "./App.css";
-import AdminDashboard from './pages/AdminDashboard';
-
 import HomePage from "./components/HomePage";
 import LaundryBookingPage from "./components/LaundryBookingPage";
 import LoginForm from "./components/LoginForm";
-
-import {
-  getBookings,
-  createBooking,
-  deleteBooking,
-} from "./api";
+import { getBookings, createBooking, cancelBooking } from "./api";
 
 const months = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
 ];
-const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const weekdays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+// ✅ Fixed machine list with valid MongoDB-like ObjectIds
 const machines = [
-  { name: "Washer 1", type: "washer" },
-  { name: "Washer 2", type: "washer" },
-  { name: "Dryer 1", type: "dryer" },
-  { name: "Dryer 2", type: "dryer" },
+  { _id: "652a61a27f6b3cc934ea3001", name: "Washer 1", type: "washer" },
+  { _id: "652a61a27f6b3cc934ea3002", name: "Washer 2", type: "washer" },
+  { _id: "652a61a27f6b3cc934ea3003", name: "Dryer 1", type: "dryer" },
+  { _id: "652a61a27f6b3cc934ea3004", name: "Dryer 2", type: "dryer" },
 ];
 
 const MAX_WEEKLY_BOOKINGS = { washer: 2, dryer: 2 };
@@ -40,7 +30,7 @@ const getWeekNumber = (date) => {
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 };
 
-const AppRoutes = () => {
+const App = () => {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -48,7 +38,8 @@ const AppRoutes = () => {
   const [bookings, setBookings] = useState({});
   const [selectedSlots, setSelectedSlots] = useState({});
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const effectiveSelectedDay = selectedDay || {
@@ -57,67 +48,49 @@ const AppRoutes = () => {
     dayName: weekdays[today.getDay()],
   };
 
-  const getWeekKey = (date) => {
-    const year = date.getFullYear();
-    const weekNum = getWeekNumber(date);
-    return `${year}-W${String(weekNum).padStart(2, "0")}`;
-  };
+  const getWeekKey = (date) =>
+    `${date.getFullYear()}-W${String(getWeekNumber(date)).padStart(2, "0")}`;
 
   const getWeekBookingStats = (weekKey) => {
     const weekBookings = bookings[weekKey] || [];
     const washerCount = weekBookings.filter((b) => b.machineType === "washer").length;
     const dryerCount = weekBookings.filter((b) => b.machineType === "dryer").length;
-    return { totalBookings: weekBookings.length, washerCount, dryerCount };
+    return { washerCount, dryerCount };
   };
 
-  // ---------------------
-  // Fetch bookings from backend
-  // ---------------------
+  // ✅ Fetch user bookings when logged in
   useEffect(() => {
-    if (!token) return;
+    if (!isLoggedIn) return;
+
     const fetchData = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const data = await getBookings(token);
+        const data = await getBookings();
         const updatedBookings = {};
         const updatedSelectedSlots = {};
 
         data.forEach((booking) => {
-          const weekKey = getWeekKey(new Date(booking.date));
+          const weekKey = getWeekKey(new Date(booking.start));
           if (!updatedBookings[weekKey]) updatedBookings[weekKey] = [];
-          updatedBookings[weekKey].push(booking);
-          updatedSelectedSlots[booking.slotId] = true;
+          const slotId = `${booking.machine}_${new Date(booking.start).getHours()}`;
+          updatedBookings[weekKey].push({ ...booking, slotId });
+          updatedSelectedSlots[slotId] = true;
         });
 
         setBookings(updatedBookings);
         setSelectedSlots(updatedSelectedSlots);
       } catch (err) {
-        const message =
-          err.response?.data?.message ||
-          (err.code === "ECONNABORTED"
-            ? "Request timed out. Please try again."
-            : err.message || "Failed to fetch bookings");
-
-        console.error("Fetch bookings error:", message);
-
-        if (err.response?.status === 401) {
-          setIsLoggedIn(false);
-          setToken(null);
-          localStorage.removeItem("token");
-          navigate("/login");
-        } else {
-          alert(message);
-        }
+        setError("Failed to fetch bookings. Please try again.");
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchData();
-  }, [token, navigate]);
+  }, [isLoggedIn]);
 
-  // ---------------------
-  // Auth helpers
-  // ---------------------
-  const handleLoginSuccess = async (token, userId) => {
-    setToken(token);
+  const handleLoginSuccess = (token, userId) => {
     localStorage.setItem("token", token);
     localStorage.setItem("userId", userId);
     setIsLoggedIn(true);
@@ -126,15 +99,11 @@ const AppRoutes = () => {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-    setToken(null);
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
     navigate("/login");
   };
 
-  // ---------------------
-  // Calendar navigation
-  // ---------------------
   const handleMonthChange = (direction) => {
     let newMonth = currentMonth + direction;
     let newYear = currentYear;
@@ -156,90 +125,69 @@ const AppRoutes = () => {
     navigate("/laundry");
   };
 
-  // ---------------------
-  // Book / Unbook toggle
-  // ---------------------
-  const toggleBooking = async (slotId, machine, machineType) => {
-    if (!effectiveSelectedDay || !token) return;
-
+  // ✅ Booking / Unbooking logic
+  const toggleBooking = async (slotId, machineName, machineType) => {
     const weekKey = getWeekKey(effectiveSelectedDay.date);
     const weekBookings = bookings[weekKey] || [];
-    const isBooked = weekBookings.some((b) => b.slotId === slotId);
     const { washerCount, dryerCount } = getWeekBookingStats(weekKey);
+    const isBooked = weekBookings.some((b) => b.slotId === slotId);
 
     if (isBooked) {
       const booking = weekBookings.find((b) => b.slotId === slotId);
-      if (booking) {
-        try {
-          await deleteBooking(booking._id, token);
-          setBookings((prev) => ({
-            ...prev,
-            [weekKey]: prev[weekKey].filter((b) => b.slotId !== slotId),
-          }));
-          setSelectedSlots((prev) => {
-            const updated = { ...prev };
-            delete updated[slotId];
-            return updated;
-          });
-        } catch (err) {
-          const message =
-            err.response?.data?.message ||
-            (err.code === "ECONNABORTED"
-              ? "Request timed out. Please try again."
-              : err.message || "Failed to cancel booking");
-
-          console.error("Delete booking error:", message);
-          alert(message);
-        }
-      }
-    } else {
-      if (machineType === "washer" && washerCount >= MAX_WEEKLY_BOOKINGS.washer) {
-        alert("You can only book 2 washers per week.");
-        return;
-      }
-      if (machineType === "dryer" && dryerCount >= MAX_WEEKLY_BOOKINGS.dryer) {
-        alert("You can only book 2 dryers per week.");
-        return;
-      }
-
-      const newBooking = {
-        slotId,
-        machine,
-        machineType,
-        dayName: effectiveSelectedDay.dayName,
-        date: effectiveSelectedDay.date,
-        timeSlot: slotId.split("_").pop(),
-        timestamp: new Date().toISOString(),
-      };
-
+      if (!booking) return;
       try {
-        const saved = await createBooking(newBooking, token);
+        await cancelBooking(booking._id);
         setBookings((prev) => ({
           ...prev,
-          [weekKey]: [...weekBookings, saved],
+          [weekKey]: prev[weekKey].filter((b) => b.slotId !== slotId),
         }));
-        setSelectedSlots((prev) => ({ ...prev, [slotId]: true }));
+        setSelectedSlots((prev) => {
+          const updated = { ...prev };
+          delete updated[slotId];
+          return updated;
+        });
       } catch (err) {
-        const message =
-          err.response?.data?.message ||
-          (err.code === "ECONNABORTED"
-            ? "Request timed out. Please try again."
-            : err.message || "Failed to create booking");
-
-        console.error("Create booking error:", message);
-        alert(message);
+        setError("Failed to cancel booking. Please try again.");
       }
+      return;
+    }
+
+    if (machineType === "washer" && washerCount >= MAX_WEEKLY_BOOKINGS.washer) {
+      setError("You can only book 2 washers per week.");
+      return;
+    }
+    if (machineType === "dryer" && dryerCount >= MAX_WEEKLY_BOOKINGS.dryer) {
+      setError("You can only book 2 dryers per week.");
+      return;
+    }
+
+    const startHour = Number(slotId.split("_").pop());
+    const start = new Date(effectiveSelectedDay.date);
+    start.setHours(startHour, 0, 0, 0);
+
+    const machine = machines.find((m) => m.name === machineName);
+    if (!machine || !machine._id) {
+      setError("Machine not found");
+      return;
+    }
+
+    try {
+      const saved = await createBooking({ machineId: machine._id, start });
+      const newSlotId = `${machineName}_${startHour}`;
+      setBookings((prev) => ({
+        ...prev,
+        [weekKey]: [...weekBookings, { ...saved, slotId: newSlotId }],
+      }));
+      setSelectedSlots((prev) => ({ ...prev, [newSlotId]: true }));
+    } catch (err) {
+      setError("Failed to create booking. Please try again.");
     }
   };
 
-  // ---------------------
-  // Unbook by ID
-  // ---------------------
   const handleUnbook = async (bookingId) => {
-    if (!token || !bookingId) return;
-
+    if (!bookingId) return;
     try {
-      await deleteBooking(bookingId, token);
+      await cancelBooking(bookingId);
       setBookings((prev) => {
         const updated = { ...prev };
         Object.keys(updated).forEach((weekKey) => {
@@ -247,29 +195,12 @@ const AppRoutes = () => {
         });
         return updated;
       });
-      setSelectedSlots((prev) => {
-        const updated = { ...prev };
-        Object.keys(updated).forEach((slotId) => {
-          if (slotId.includes(bookingId)) delete updated[slotId];
-        });
-        return updated;
-      });
-      alert("Booking cancelled successfully!");
+      setError(null);
     } catch (err) {
-      const message =
-        err.response?.data?.message ||
-        (err.code === "ECONNABORTED"
-          ? "Request timed out. Please try again."
-          : err.message || "Failed to cancel booking");
-
-      console.error("Delete booking error:", message);
-      alert(message);
+      setError("Failed to cancel booking. Please try again.");
     }
   };
 
-  // ---------------------
-  // Derived state
-  // ---------------------
   const selectedWeekKey = getWeekKey(effectiveSelectedDay.date);
   const weekBookings = bookings[selectedWeekKey] || [];
   const timeSlots = useMemo(
@@ -277,83 +208,72 @@ const AppRoutes = () => {
     []
   );
 
-  // ---------------------
-  // Routes
-  // ---------------------
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          isLoggedIn ? (
-            <HomePage
-              today={today}
-              currentMonth={currentMonth}
-              currentYear={currentYear}
-              setCurrentMonth={setCurrentMonth}
-              setCurrentYear={setCurrentYear}
-              selectedDay={effectiveSelectedDay.day}
-              setSelectedDay={setSelectedDay}
-              bookings={bookings}
-              selectedWeekKey={selectedWeekKey}
-              weekBookings={weekBookings}
-              handleDayClick={handleDayClick}
-              handleMonthChange={handleMonthChange}
-              toggleBooking={toggleBooking}
-              handleUnbook={handleUnbook}
-              months={months}
-              weekdays={weekdays}
-              handleLogout={handleLogout}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      <Route
-        path="/laundry"
-        element={
-          isLoggedIn ? (
-            <LaundryBookingPage
-              selectedDay={effectiveSelectedDay}
-              machines={machines}
-              timeSlots={timeSlots}
-              selectedSlots={selectedSlots}
-              toggleBooking={toggleBooking}
-              weekBookings={weekBookings}
-              handleUnbook={handleUnbook}
-              selectedWeekKey={selectedWeekKey}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          isLoggedIn ? (
-            <Navigate to="/" replace />
-          ) : (
-            <LoginForm onLoginSuccess={handleLoginSuccess} />
-          )
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          isLoggedIn ? (
-            <Navigate to="/" replace />
-          ) : (
-            <LoginForm onLoginSuccess={handleLoginSuccess} /> 
-          )
-        }
-      />
-      <Route path="/admin" element={<AdminDashboard />} />
-    </Routes>
+    <>
+      {loading && <div>Loading...</div>}
+      {error && <div style={{ color: "red", textAlign: "center" }}>{error}</div>}
+
+      <Routes>
+        <Route
+          path="/"
+          element={
+            isLoggedIn ? (
+              <HomePage
+                today={today}
+                currentMonth={currentMonth}
+                currentYear={currentYear}
+                setCurrentMonth={setCurrentMonth}
+                setCurrentYear={setCurrentYear}
+                selectedDay={effectiveSelectedDay.day}
+                setSelectedDay={setSelectedDay}
+                bookings={bookings}
+                selectedWeekKey={selectedWeekKey}
+                weekBookings={weekBookings}
+                handleDayClick={handleDayClick}
+                handleMonthChange={handleMonthChange}
+                months={months}
+                weekdays={weekdays}
+                handleLogout={handleLogout}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/laundry"
+          element={
+            isLoggedIn ? (
+              <LaundryBookingPage
+                selectedDay={effectiveSelectedDay}
+                machines={machines}
+                timeSlots={timeSlots}
+                selectedSlots={selectedSlots}
+                toggleBooking={toggleBooking}
+                weekBookings={weekBookings}
+                handleUnbook={handleUnbook}
+                selectedWeekKey={selectedWeekKey}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/login"
+          element={
+            isLoggedIn ? (
+              <Navigate to="/" replace />
+            ) : (
+              <LoginForm onLoginSuccess={handleLoginSuccess} />
+            )
+          }
+        />
+      </Routes>
+    </>
   );
 };
-
-const App = () => <AppRoutes />;
 
 export default App;

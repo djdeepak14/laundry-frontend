@@ -1,48 +1,40 @@
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import washerImg from '../assets/washer.jpg';
 
 const LoginForm = ({ onLoginSuccess }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [wsMessage, setWsMessage] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
 
-  // Use env variable with fallback for API base URL
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://laundry-backend-8x1e.onrender.com';
-  console.log('API URL:', API_BASE_URL);
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
-  // Poll backend status
+  // ✅ Check server connection
   useEffect(() => {
     let retryCount = 0;
     const maxRetries = 3;
     const retryDelay = 5000;
+    let interval;
 
     const checkServerStatus = async () => {
+      if (wsConnected) return;
       try {
-        // Try /status endpoint
         const res = await axios.get(`${API_BASE_URL}/status`, { timeout: 5000 });
-        setWsMessage(`Server Status: ${JSON.stringify(res.data)}`);
+        setWsMessage(`✅ Server connected: ${res.data.status || 'OK'}`);
         setWsConnected(true);
         setError('');
         retryCount = 0;
       } catch (err) {
-        console.error('AxiosError:', err.message, err.code, err.response?.status);
         if (err.response?.status === 404) {
-          // Fallback to root endpoint
-          try {
-            await axios.get(`${API_BASE_URL}/`, { timeout: 5000 });
-            setWsMessage('Server is up, but /status endpoint not found.');
-            setWsConnected(true);
-            setError('');
-            retryCount = 0;
-          } catch (fallbackErr) {
-            handleConnectionFailure(fallbackErr);
-          }
+          setWsMessage('⚠️ Server up, but /status endpoint not found.');
+          setWsConnected(true);
+          setError('');
         } else {
           handleConnectionFailure(err);
         }
@@ -51,79 +43,101 @@ const LoginForm = ({ onLoginSuccess }) => {
 
     const handleConnectionFailure = (err) => {
       if (err.code === 'ERR_NETWORK' || err.response?.status === 0) {
-        setWsMessage('CORS or network error. Please check backend CORS configuration.');
+        setWsMessage('❌ Network error: Check backend CORS or if server is running.');
       } else if (retryCount < maxRetries) {
         retryCount++;
-        setWsMessage(`Retrying server connection (${retryCount}/${maxRetries})...`);
+        setWsMessage(`Retrying (${retryCount}/${maxRetries})...`);
         setTimeout(checkServerStatus, retryDelay);
       } else {
-        setWsMessage('Unable to connect to backend server. Please try again later.');
+        setWsMessage('🚫 Cannot connect to server.');
         setWsConnected(false);
-        setError('Network error: Unable to connect to the server.');
+        setError('Network error: Server unreachable.');
       }
     };
 
     checkServerStatus();
-    const interval = setInterval(checkServerStatus, 30000);
+    if (!wsConnected) interval = setInterval(checkServerStatus, 30000);
     return () => clearInterval(interval);
-  }, [API_BASE_URL]);
+  }, [API_BASE_URL, wsConnected]);
 
-  // Toggle login/register
+  // ✅ Email validation
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  // ✅ Toggle login/register mode
   const toggleMode = () => {
     setIsRegistering(!isRegistering);
     setError('');
-    setUsername('');
+    setEmail('');
     setPassword('');
+    setName('');
+    setConfirmPassword('');
   };
 
-  // Submit handler
+  // ✅ Form submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const url = isRegistering ? `${API_BASE_URL}/register` : `${API_BASE_URL}/login`;
-    const payload = { username: username.trim(), password: password.trim() };
+    if (!email || !password || (isRegistering && (!name || !confirmPassword))) {
+      setError('All fields are required.');
+      setLoading(false);
+      return;
+    }
+    if (!validateEmail(email)) {
+      setError('Invalid email format.');
+      setLoading(false);
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      setLoading(false);
+      return;
+    }
+    if (isRegistering && password !== confirmPassword) {
+      setError('Passwords do not match.');
+      setLoading(false);
+      return;
+    }
+
+    const url = isRegistering
+      ? `${API_BASE_URL}/user/register`
+      : `${API_BASE_URL}/user/login`;
+
+    const payload = isRegistering
+      ? { email: email.trim(), password: password.trim(), name: name.trim(), confirmPassword: confirmPassword.trim() }
+      : { email: email.trim(), password: password.trim() };
 
     try {
-      if (!payload.username || !payload.password) throw new Error('Username and password required');
-      console.log('Sending to backend:', payload);
+      const response = await axios.post(url, payload, {
+        withCredentials: true,
+        timeout: 10000,
+        headers: { 'Content-Type': 'application/json' },
+      });
 
-      const response = await axios.post(url, payload, { withCredentials: true, timeout: 10000 });
       const data = response.data;
-      console.log('Backend response:', data);
-
       if (isRegistering) {
-        alert('✅ Registration successful! Please login.');
-        setIsRegistering(false);
-        setUsername('');
-        setPassword('');
+        alert('✅ Registration successful! Please log in.');
+        toggleMode();
+      } else if (data.data?.accessToken) {
+        localStorage.setItem('token', data.data.accessToken);
+        onLoginSuccess(data.data.accessToken);
       } else {
-        if (data.token && data.userId) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('userId', data.userId);
-          onLoginSuccess(data.token, data.userId);
-        } else {
-          setError('Login failed: Invalid server response.');
-        }
+        setError('Login failed: No token received.');
       }
     } catch (err) {
-      console.error('Request error:', err.message, err.response?.status, err.response?.data);
-      if (err.code === 'ERR_NETWORK') {
-        setError('Network error: Unable to connect to the server.');
-      } else if (err.response?.status === 0) {
-        setError('CORS error: Backend did not allow request.');
-      } else if (err.response?.status === 404) {
-        setError('Endpoint not found. Please verify the backend API.');
-      } else {
-        setError(err.response?.data?.message || err.message || 'Failed to connect to server.');
-      }
+      if (err.response?.status === 500) setError('Server error: Check backend logs.');
+      else if (err.response?.status === 400) setError(err.response.data.message || 'Invalid input.');
+      else if (err.code === 'ERR_NETWORK') setError('Network error: Server unreachable.');
+      else if (err.response?.status === 0) setError('CORS error: Request blocked.');
+      else if (err.response?.status === 404) setError('Endpoint not found.');
+      else setError(err.response?.data?.message || 'Request failed.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Styles
+  // ✅ Styles
   const backgroundStyle = {
     backgroundImage: `url(${washerImg})`,
     backgroundSize: 'cover',
@@ -171,21 +185,38 @@ const LoginForm = ({ onLoginSuccess }) => {
   const wsMessageStyle = { color: wsConnected ? '#2e7d32' : '#d32f2f', margin: '10px 0', fontSize: '0.9rem' };
   const toggleLinkStyle = { marginTop: '12px', cursor: 'pointer', color: '#007bff', fontSize: '0.9rem', textDecoration: 'underline' };
 
-  // Render
+  // ✅ Render
   return (
     <div style={backgroundStyle}>
       <form onSubmit={handleSubmit} style={formStyle}>
-        <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem' }}>{isRegistering ? 'Register' : 'Login'}</h2>
+        <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem' }}>
+          {isRegistering ? 'Register' : 'Login'}
+        </h2>
+
+        {isRegistering && (
+          <input
+            type="text"
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={inputStyle}
+            required
+            disabled={loading}
+            autoComplete="name"
+          />
+        )}
+
         <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           style={inputStyle}
           required
           disabled={loading}
-          autoComplete="username"
+          autoComplete="email"
         />
+
         <input
           type="password"
           placeholder="Password"
@@ -196,13 +227,37 @@ const LoginForm = ({ onLoginSuccess }) => {
           disabled={loading}
           autoComplete="current-password"
         />
+
+        {isRegistering && (
+          <input
+            type="password"
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            style={inputStyle}
+            required
+            disabled={loading}
+            autoComplete="new-password"
+          />
+        )}
+
         {error && <p style={errorStyle}>{error}</p>}
         {wsMessage && <p style={wsMessageStyle}>{wsMessage}</p>}
+
         <button type="submit" style={buttonStyle} disabled={loading || !wsConnected}>
-          {loading ? (isRegistering ? 'Registering...' : 'Logging in...') : (isRegistering ? 'Register' : 'Login')}
+          {loading
+            ? isRegistering
+              ? 'Registering...'
+              : 'Logging in...'
+            : isRegistering
+              ? 'Register'
+              : 'Login'}
         </button>
+
         <p style={toggleLinkStyle} onClick={toggleMode}>
-          {isRegistering ? 'Already have an account? Login' : 'No account? Register'}
+          {isRegistering
+            ? 'Already have an account? Login'
+            : 'No account? Register'}
         </p>
       </form>
     </div>
