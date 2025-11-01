@@ -68,8 +68,8 @@ const App = () => {
   const getBookingStats = () => {
     const userId = localStorage.getItem("userId");
     const activeBookings = bookings.filter(
-      b => (b.user?._id === userId || b.userId === userId) && 
-           b.status === "booked" && 
+      b => (b.user?._id === userId || b.userId === userId) &&
+           b.status === "booked" &&
            new Date(b.end).getTime() > Date.now()
     );
     const washerCount = activeBookings.filter(b => b.machine?.type === "washer").length;
@@ -166,20 +166,24 @@ const App = () => {
         });
         setError(null);
       } catch {
-        setError("Cancel failed.");
+        setError("Failed to cancel booking.");
       }
       return;
     }
 
     // Lock until booked time passes
     if (machineType === "washer" && latestWasherEnd > now) {
-      const nextTime = DateTime.fromJSDate(new Date(latestWasherEnd), { zone: "utc" }).setZone(HELSINKI_TZ).toFormat("HH:mm");
-      setError(`You must wait until your last washer booking ends (${nextTime}) before booking another.`);
+      const nextTime = DateTime.fromJSDate(new Date(latestWasherEnd), { zone: "utc" })
+        .setZone(HELSINKI_TZ)
+        .toFormat("HH:mm");
+      setError(`You must wait until your last washer booking ends at ${nextTime} EET before booking another.`);
       return;
     }
     if (machineType === "dryer" && latestDryerEnd > now) {
-      const nextTime = DateTime.fromJSDate(new Date(latestDryerEnd), { zone: "utc" }).setZone(HELSINKI_TZ).toFormat("HH:mm");
-      setError(`You must wait until your last dryer booking ends (${nextTime}) before booking another.`);
+      const nextTime = DateTime.fromJSDate(new Date(latestDryerEnd), { zone: "utc" })
+        .setZone(HELSINKI_TZ)
+        .toFormat("HH:mm");
+      setError(`You must wait until your last dryer booking ends at ${nextTime} EET before booking another.`);
       return;
     }
 
@@ -225,7 +229,7 @@ const App = () => {
       setSelectedSlots(prev => ({ ...prev, [newSlotId]: true }));
       setError(null);
     } catch (e) {
-      setError(e.message || "Booking failed.");
+      setError(e.message || "Failed to create booking.");
     }
   };
 
@@ -246,7 +250,7 @@ const App = () => {
       });
       setError(null);
     } catch {
-      setError("Unbook failed.");
+      setError("Failed to cancel booking.");
     }
   };
 
