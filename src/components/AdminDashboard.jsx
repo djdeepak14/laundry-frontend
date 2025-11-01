@@ -32,7 +32,7 @@ const AdminDashboard = () => {
       try {
         const [usersRes, bookingsRes, machinesRes] = await Promise.all([
           getAllUsers(),
-          adminGetAllBookings(),   // Admin-only
+          adminGetAllBookings(),
           getMachines(),
         ]);
 
@@ -40,7 +40,6 @@ const AdminDashboard = () => {
         setUsers(usersList);
 
         const machinesList = Array.isArray(machinesRes) ? machinesRes : machinesRes.data || [];
-
         const bookingsList = Array.isArray(bookingsRes) ? bookingsRes : bookingsRes.data || [];
 
         const enriched = bookingsList
@@ -59,9 +58,12 @@ const AdminDashboard = () => {
               machineType: machine?.type || b.machine?.type || "unknown",
               userName: user?.name || b.user?.name || "Unknown",
               userEmail: user?.email || b.user?.email || "unknown@example.com",
-              formattedDate: start.toFormat("MMM dd, yyyy"),
-              formattedTime: `${start.toFormat("HH:mm")} - ${end.toFormat("HH:mm")}`,
-              duration: end.diff(start, "hours").hours,
+              formattedDate: start.isValid ? start.toFormat("MMM dd, yyyy") : "N/A",
+              formattedTime:
+                start.isValid && end.isValid
+                  ? `${start.toFormat("HH:mm")} - ${end.toFormat("HH:mm")}`
+                  : "N/A",
+              duration: start.isValid && end.isValid ? end.diff(start, "hours").hours : 0,
             };
           })
           .sort((a, b) => new Date(b.start) - new Date(a.start));
@@ -113,14 +115,13 @@ const AdminDashboard = () => {
     }
   };
 
-  // Admin: Cancel any booking
   const handleCancelBooking = async (bookingId, status) => {
     const action = status === "booked" ? "unbook" : "cancel";
     const actionPast = status === "booked" ? "unbooked" : "cancelled";
     if (!window.confirm(`Are you sure you want to ${action} this booking?`)) return;
 
     try {
-      await adminCancelAnyBooking(bookingId); // Admin route
+      await adminCancelAnyBooking(bookingId);
       setBookings((p) => p.filter((b) => b._id !== bookingId));
       alert(`Booking ${actionPast} successfully!`);
     } catch (err) {
@@ -265,6 +266,7 @@ const AdminDashboard = () => {
           </button>
         </div>
 
+        {/* USERS TABLE */}
         {activeTab === "users" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg">
             <table className="min-w-full">
@@ -280,61 +282,68 @@ const AdminDashboard = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {paginatedUsers.length ? (
-                  paginatedUsers.map((u) => (
-                    <tr key={u._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">{u.name || "N/A"}</td>
-                      <td className="px-6 py-4 font-mono text-sm">{u.email}</td>
-                      <td className="px-6 py-4 text-center">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            u.role === "admin"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {u.role || "user"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {u.role === "admin" ? (
-                          <span className="text-blue-600 font-semibold">
-                            Always Approved
+                  paginatedUsers.map((u) => {
+                    const created =
+                      u.createdAt && DateTime.fromISO(u.createdAt).isValid
+                        ? DateTime.fromISO(u.createdAt).toFormat("MMM dd, yyyy")
+                        : "N/A";
+
+                    return (
+                      <tr key={u._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">{u.name || "N/A"}</td>
+                        <td className="px-6 py-4 font-mono text-sm">{u.email}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              u.role === "admin"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {u.role || "user"}
                           </span>
-                        ) : u.isApproved ? (
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-                            Approved
-                          </span>
-                        ) : (
-                          <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">
-                            Pending
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-center text-sm text-gray-500">
-                        {DateTime.fromISO(u.createdAt).toFormat("MMM dd, yyyy")}
-                      </td>
-                      <td className="px-6 py-4 text-center space-x-2">
-                        {u.role !== "admin" && (
-                          <>
-                            {!u.isApproved && (
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {u.role === "admin" ? (
+                            <span className="text-blue-600 font-semibold">
+                              Always Approved
+                            </span>
+                          ) : u.isApproved ? (
+                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                              Approved
+                            </span>
+                          ) : (
+                            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">
+                              Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center text-sm text-gray-500">
+                          {created}
+                        </td>
+                        <td className="px-6 py-4 text-center space-x-2">
+                          {u.role !== "admin" && (
+                            <>
+                              {!u.isApproved && (
+                                <button
+                                  onClick={() => handleApprove(u._id)}
+                                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm"
+                                >
+                                  Approve
+                                </button>
+                              )}
                               <button
-                                onClick={() => handleApprove(u._id)}
-                                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm"
+                                onClick={() => handleDelete(u._id)}
+                                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm"
                               >
-                                Approve
+                                Delete
                               </button>
-                            )}
-                            <button
-                              onClick={() => handleDelete(u._id)}
-                              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm"
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan="6" className="text-center py-8 text-gray-500">
@@ -369,6 +378,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* BOOKINGS TABLE */}
         {activeTab === "bookings" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg">
             <table className="min-w-full">
@@ -419,7 +429,7 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        {b.duration.toFixed(1)}
+                        {b.duration ? b.duration.toFixed(1) : "0.0"}
                       </td>
                       <td className="px-6 py-4 text-center">
                         {(b.status === "booked" || b.status === "completed") && (

@@ -1,4 +1,3 @@
-// src/App.jsx  ←  FINAL VERSION
 import React, { useState, useEffect, useMemo } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import "./App.css";
@@ -24,35 +23,26 @@ const machines = [
   { _id: "652a61a27f6b3cc934ea3004", name: "Dryer 2", type: "dryer" },
 ];
 
-const MAX_WEEKLY_BOOKINGS = { washer: 2, dryer: 2 };
-
-const getWeekNumber = (date) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
-};
+const MAX_BOOKINGS = { washer: 2, dryer: 2 };
 
 const App = () => {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDay, setSelectedDay] = useState(null);
-  const [bookings, setBookings] = useState({});
+  const [bookings, setBookings] = useState([]);
   const [selectedSlots, setSelectedSlots] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // User login data
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role") || "user";
   const loggedIn = !!token;
   const [isLoggedIn, setIsLoggedIn] = useState(loggedIn);
   const [userRole, setUserRole] = useState(role);
 
-  // React to localStorage changes
+  // Watch localStorage changes
   useEffect(() => {
     const handler = () => {
       const newToken = localStorage.getItem("token");
@@ -74,17 +64,22 @@ const App = () => {
     dayName: weekdays[today.getDay()],
   };
 
-  const getWeekKey = (date) =>
-    `${date.getFullYear()}-W${String(getWeekNumber(date)).padStart(2, "0")}`;
-
-  const getWeekBookingStats = (weekKey) => {
-    const weekBookings = bookings[weekKey] || [];
-    const washerCount = weekBookings.filter(b => b.machineType === "washer").length;
-    const dryerCount = weekBookings.filter(b => b.machineType === "dryer").length;
-    return { washerCount, dryerCount };
+  // Calculate active booking stats for the user
+  const getBookingStats = () => {
+    const userId = localStorage.getItem("userId");
+    const activeBookings = bookings.filter(
+      b => (b.user?._id === userId || b.userId === userId) && 
+           b.status === "booked" && 
+           new Date(b.end).getTime() > Date.now()
+    );
+    const washerCount = activeBookings.filter(b => b.machine?.type === "washer").length;
+    const dryerCount = activeBookings.filter(b => b.machine?.type === "dryer").length;
+    const latestWasherEnd = Math.max(...activeBookings.filter(b => b.machine?.type === "washer").map(b => new Date(b.end).getTime()), 0);
+    const latestDryerEnd = Math.max(...activeBookings.filter(b => b.machine?.type === "dryer").map(b => new Date(b.end).getTime()), 0);
+    return { washerCount, dryerCount, latestWasherEnd, latestDryerEnd };
   };
 
-  /* -------------------- FETCH BOOKINGS -------------------- */
+  // Fetch user bookings
   useEffect(() => {
     if (!isLoggedIn) return;
     const fetchData = async () => {
@@ -93,26 +88,16 @@ const App = () => {
       try {
         const data = await getBookings();
         const arr = Array.isArray(data) ? data : data?.data || [];
-
-        const updatedBookings = {};
-        const updatedSelectedSlots = {};
-
-        arr.forEach((b) => {
-          const weekKey = getWeekKey(new Date(b.start));
-          if (!updatedBookings[weekKey]) updatedBookings[weekKey] = [];
-
-          const machineName = b.machine?.name || b.machine || "unknown";
-
-          // ✅ Keep in UTC here (no conversion)
-          const startDt = DateTime.fromISO(b.start, { zone: "utc" });
-          const hour = startDt.hour; // UTC hour only
-          const slotId = `${machineName}_${hour}`;
-
-          updatedBookings[weekKey].push({ ...b, slotId });
-          updatedSelectedSlots[slotId] = true;
-        });
-
+        const updatedBookings = arr.map(b => ({
+          ...b,
+          slotId: `${b.machine?.name || b.machine || "unknown"}_${DateTime.fromISO(b.start, { zone: "utc" }).hour}`,
+          machine: { ...b.machine, type: b.machine?.type || "unknown" }
+        }));
         setBookings(updatedBookings);
+        const updatedSelectedSlots = {};
+        updatedBookings.forEach(b => {
+          updatedSelectedSlots[b.slotId] = true;
+        });
         setSelectedSlots(updatedSelectedSlots);
       } catch (e) {
         console.error(e);
@@ -124,7 +109,7 @@ const App = () => {
     fetchData();
   }, [isLoggedIn, userRole]);
 
-  /* -------------------- LOGIN / LOGOUT -------------------- */
+  // Handle login success
   const handleLoginSuccess = (token, userId, role) => {
     if (token) localStorage.setItem("token", token);
     if (userId) localStorage.setItem("userId", userId);
@@ -132,17 +117,18 @@ const App = () => {
     navigate(role === "admin" ? "/admin" : "/", { replace: true });
   };
 
+  // Handle logout
   const handleLogout = () => {
     localStorage.clear();
     setIsLoggedIn(false);
     setUserRole("user");
-    setBookings({});
+    setBookings([]);
     setSelectedSlots({});
     setSelectedDay(null);
     navigate("/login", { replace: true });
   };
 
-  /* -------------------- CALENDAR -------------------- */
+  // Handle calendar month change
   const handleMonthChange = (dir) => {
     let m = currentMonth + dir;
     let y = currentYear;
@@ -153,30 +139,28 @@ const App = () => {
     setSelectedDay(null);
   };
 
+  // Handle day selection
   const handleDayClick = (day) => {
     const date = new Date(currentYear, currentMonth, day);
     setSelectedDay({ date, day, dayName: weekdays[date.getDay()] });
     navigate("/laundry");
   };
 
-  /* -------------------- BOOKING -------------------- */
+  // Handle booking or unbooking
   const toggleBooking = async (slotId, machineName, machineType) => {
-    const weekKey = getWeekKey(effectiveSelectedDay.date);
-    const weekBookings = bookings[weekKey] || [];
-    const { washerCount, dryerCount } = getWeekBookingStats(weekKey);
-    const isBooked = weekBookings.some(b => b.slotId === slotId);
+    const { washerCount, dryerCount, latestWasherEnd, latestDryerEnd } = getBookingStats();
+    const isBooked = bookings.some(b => b.slotId === slotId && b.status === "booked");
+    const now = Date.now();
 
+    // If unbooking
     if (isBooked) {
-      const booking = weekBookings.find(b => b.slotId === slotId);
+      const booking = bookings.find(b => b.slotId === slotId && b.status === "booked");
       if (!booking) return;
       try {
         await cancelBooking(booking._id);
-        setBookings(p => ({
-          ...p,
-          [weekKey]: p[weekKey]?.filter(b => b.slotId !== slotId) || []
-        }));
-        setSelectedSlots(p => {
-          const u = { ...p };
+        setBookings(prev => prev.filter(b => b._id !== booking._id));
+        setSelectedSlots(prev => {
+          const u = { ...prev };
           delete u[slotId];
           return u;
         });
@@ -187,15 +171,29 @@ const App = () => {
       return;
     }
 
-    if (machineType === "washer" && washerCount >= MAX_WEEKLY_BOOKINGS.washer) {
-      setError("Max 2 washers/week.");
+    // Lock until booked time passes
+    if (machineType === "washer" && latestWasherEnd > now) {
+      const nextTime = DateTime.fromJSDate(new Date(latestWasherEnd), { zone: "utc" }).setZone(HELSINKI_TZ).toFormat("HH:mm");
+      setError(`You must wait until your last washer booking ends (${nextTime}) before booking another.`);
       return;
     }
-    if (machineType === "dryer" && dryerCount >= MAX_WEEKLY_BOOKINGS.dryer) {
-      setError("Max 2 dryers/week.");
+    if (machineType === "dryer" && latestDryerEnd > now) {
+      const nextTime = DateTime.fromJSDate(new Date(latestDryerEnd), { zone: "utc" }).setZone(HELSINKI_TZ).toFormat("HH:mm");
+      setError(`You must wait until your last dryer booking ends (${nextTime}) before booking another.`);
       return;
     }
 
+    // Check 2-booking limit
+    if (machineType === "washer" && washerCount >= MAX_BOOKINGS.washer) {
+      setError("You have reached the maximum of 2 active washer bookings.");
+      return;
+    }
+    if (machineType === "dryer" && dryerCount >= MAX_BOOKINGS.dryer) {
+      setError("You have reached the maximum of 2 active dryer bookings.");
+      return;
+    }
+
+    // Normal booking flow
     const startHour = Number(slotId.split("_").pop());
     const base = effectiveSelectedDay.date;
     const startLocal = DateTime.fromObject(
@@ -210,33 +208,39 @@ const App = () => {
     );
 
     const startISO = startLocal.toUTC().toISO({ suppressMilliseconds: true });
-    const endISO = startLocal.plus({ hours: 1 }).toUTC().toISO({ suppressMilliseconds: true });
 
-    const machine = machines.find(m => m.name === machineName);
-    if (!machine) { setError("Machine not found"); return; }
+    const machine = machines.find(m => m.name === machineName && m.type === machineType);
+    if (!machine) {
+      setError("Machine not found");
+      return;
+    }
 
     try {
-      const saved = await createBooking({ machineId: machine._id, start: startISO, end: endISO });
+      const saved = await createBooking({ machineId: machine._id, start: startISO });
       const newSlotId = `${machineName}_${startLocal.hour}`;
-      setBookings(p => ({
-        ...p,
-        [weekKey]: [...(p[weekKey] || []), { ...saved, slotId: newSlotId }]
-      }));
-      setSelectedSlots(p => ({ ...p, [newSlotId]: true }));
+      setBookings(prev => [
+        ...prev,
+        { ...saved, slotId: newSlotId, machine: { ...saved.machine, type: machineType } }
+      ]);
+      setSelectedSlots(prev => ({ ...prev, [newSlotId]: true }));
       setError(null);
-    } catch {
-      setError("Booking failed.");
+    } catch (e) {
+      setError(e.message || "Booking failed.");
     }
   };
 
+  // Handle unbooking
   const handleUnbook = async (bookingId) => {
     if (!bookingId) return;
     try {
       await cancelBooking(bookingId);
-      setBookings(p => {
-        const u = { ...p };
-        Object.keys(u).forEach(wk => {
-          u[wk] = u[wk]?.filter(b => b._id !== bookingId) || [];
+      setBookings(prev => prev.filter(b => b._id !== bookingId));
+      setSelectedSlots(prev => {
+        const u = { ...prev };
+        Object.keys(u).forEach(slotId => {
+          if (!bookings.find(b => b.slotId === slotId && b.status === "booked")) {
+            delete u[slotId];
+          }
         });
         return u;
       });
@@ -246,21 +250,21 @@ const App = () => {
     }
   };
 
-  const selectedWeekKey = getWeekKey(effectiveSelectedDay.date);
-  const weekBookings = bookings[selectedWeekKey] || [];
   const timeSlots = useMemo(
     () => Array.from({ length: 14 }, (_, i) => `${i + 8}:00 - ${i + 9}:00`),
     []
   );
 
-  /* -------------------- RENDER -------------------- */
+  // Render
   return (
     <>
       {loading && <div className="text-center p-8">Loading…</div>}
       {error && (
         <div className="bg-red-100 text-red-700 p-3 text-center fixed top-0 left-0 right-0 z-50">
           {error}
-          <button onClick={() => setError(null)} className="ml-4 font-bold">×</button>
+          <button onClick={() => setError(null)} className="ml-4 font-bold">
+            ×
+          </button>
         </div>
       )}
 
@@ -300,8 +304,6 @@ const App = () => {
                 selectedDay={effectiveSelectedDay}
                 setSelectedDay={setSelectedDay}
                 bookings={bookings}
-                selectedWeekKey={selectedWeekKey}
-                weekBookings={weekBookings}
                 handleDayClick={handleDayClick}
                 handleMonthChange={handleMonthChange}
                 months={months}
@@ -325,9 +327,8 @@ const App = () => {
                 timeSlots={timeSlots}
                 selectedSlots={selectedSlots}
                 toggleBooking={toggleBooking}
-                weekBookings={weekBookings}
+                weekBookings={bookings}
                 handleUnbook={handleUnbook}
-                selectedWeekKey={selectedWeekKey}
               />
             ) : (
               <Navigate to="/login" replace />

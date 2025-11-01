@@ -1,6 +1,9 @@
 // src/api.js
 import axios from "axios";
 
+// =============================
+// 🔧 API Configuration
+// =============================
 const API = axios.create({
   baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api/v1",
   headers: { "Content-Type": "application/json" },
@@ -8,12 +11,13 @@ const API = axios.create({
   withCredentials: true,
 });
 
+// =============================
+// 🛡️ Auth Interceptors
+// =============================
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`;
 
     console.log(
       "Request:",
@@ -21,7 +25,6 @@ API.interceptors.request.use(
       config.baseURL + config.url,
       config.data ? JSON.stringify(config.data) : ""
     );
-
     return config;
   },
   (error) => Promise.reject(error)
@@ -30,22 +33,22 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (
-      error.response?.status === 401 &&
-      (error.response?.data?.message || "")
-        .toLowerCase()
-        .includes("invalid token")
-    ) {
+    const message =
+      error.response?.data?.message?.toLowerCase() || "";
+
+    if (error.response?.status === 401 && message.includes("invalid token")) {
       console.warn("Invalid or expired token. Logging out...");
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
-      localStorage.removeItem("userId");
+      localStorage.clear();
       window.location.href = "/login";
     }
+
     return Promise.reject(error);
   }
 );
 
+// =============================
+// ⚙️ Error Handler
+// =============================
 const handleError = (err, defaultMessage) => {
   const message =
     err.response?.data?.message ||
@@ -58,10 +61,12 @@ const handleError = (err, defaultMessage) => {
   throw new Error(message);
 };
 
+// =============================
+// 👤 User Authentication
+// =============================
 export const loginUser = async (email, password) => {
   try {
     const { data } = await API.post("/user/login", { email, password });
-
     const token = data?.data?.accessToken || data?.token || null;
     const role = data?.data?.user?.role || data?.role || "user";
     const userId = data?.data?.user?._id || data?.userId || null;
@@ -101,6 +106,9 @@ export const logoutUser = async () => {
   }
 };
 
+// =============================
+// 🧺 Bookings
+// =============================
 export const getBookings = async () => {
   try {
     const { data } = await API.get("/booking");
@@ -112,6 +120,7 @@ export const getBookings = async () => {
   }
 };
 
+// ➕ Create booking (independent washer/dryer)
 export const createBooking = async (booking) => {
   try {
     const { data } = await API.post("/booking", booking);
@@ -121,15 +130,17 @@ export const createBooking = async (booking) => {
   }
 };
 
+// ❌ Cancel booking (user)
 export const cancelBooking = async (id) => {
   try {
     const { data } = await API.delete(`/booking/${id}`);
     return data;
   } catch (err) {
-    throw handleError(err, "Failed to cancel/unbook booking");
+    throw handleError(err, "Failed to cancel booking");
   }
 };
 
+// 🗓️ Admin: get all bookings
 export const adminGetAllBookings = async () => {
   try {
     const { data } = await API.get("/booking/admin/all");
@@ -141,6 +152,7 @@ export const adminGetAllBookings = async () => {
   }
 };
 
+// 🛑 Admin: cancel any booking
 export const adminCancelAnyBooking = async (id) => {
   try {
     const { data } = await API.delete(`/booking/admin/cancel/${id}`);
@@ -150,6 +162,9 @@ export const adminCancelAnyBooking = async (id) => {
   }
 };
 
+// =============================
+// 🧾 Machines
+// =============================
 export const getMachines = async () => {
   try {
     const { data } = await API.get("/machines");
@@ -161,6 +176,9 @@ export const getMachines = async () => {
   }
 };
 
+// =============================
+// 👥 Users (Admin)
+// =============================
 export const getAllUsers = async () => {
   try {
     const { data } = await API.get("/admin/users");
