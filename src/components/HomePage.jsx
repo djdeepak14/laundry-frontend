@@ -8,6 +8,8 @@ import { DateTime } from 'luxon';
 import logo from '../assets/Sevas.png';
 import '../App.css';
 
+const HELSINKI_TZ = 'Europe/Helsinki';
+
 // === ERROR BOUNDARY ===
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
@@ -49,7 +51,6 @@ const HomePage = ({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookedLaundry, setBookedLaundry] = useState([]);
   const [, setMachines] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -59,12 +60,11 @@ const HomePage = ({
     return () => clearInterval(timer);
   }, []);
 
-  // === FETCH MACHINES & BOOKINGS (ONLY MY BOOKINGS) ===
+  // === FETCH MACHINES & BOOKINGS (ONLY MY UPCOMING BOOKINGS) ===
   const fetchBookedLaundry = useCallback(async (retries = 3) => {
     try {
       setLoading(true);
       setError('');
-
       // 1️⃣ Get all machines (to resolve IDs -> names)
       const machineResponse = await getMachines();
       const allMachines = (machineResponse?.data || machineResponse || []).map((m) => ({
@@ -78,17 +78,17 @@ const HomePage = ({
       // 2️⃣ Fetch bookings
       const bookings = await getBookings();
       console.log('Fetched bookings for Home:', bookings);
+      const userId = localStorage.getItem('userId'); // Must be stored on login
+      const now = DateTime.now().setZone(HELSINKI_TZ);
 
-      const userId = localStorage.getItem('userId'); // must be stored on login
-
-      // 3️⃣ Filter only my active bookings
+      // 3️⃣ Filter only my active, upcoming bookings
       const formatted = (bookings || [])
         .filter((b) => b.status === 'booked')
-        .filter((b) => b.user?._id === userId || b.userId === userId)
+        .filter((b) => (b.user?._id === userId || b.userId === userId))
+        .filter((b) => DateTime.fromISO(b.end, { zone: 'utc' }).setZone(HELSINKI_TZ) > now)
         .map((b, index) => {
-          const start = DateTime.fromISO(b.start, { zone: 'utc' });
-          const end = DateTime.fromISO(b.end, { zone: 'utc' });
-
+          const start = DateTime.fromISO(b.start, { zone: 'utc' }).setZone(HELSINKI_TZ);
+          const end = DateTime.fromISO(b.end, { zone: 'utc' }).setZone(HELSINKI_TZ);
           let machineName = 'Unknown Machine';
           let machineType = 'machine';
           const m = b.machine;
@@ -102,7 +102,6 @@ const HomePage = ({
               machineType = found.type;
             }
           }
-
           return {
             ...b,
             _id: b._id || `temp-${index}`,
@@ -159,14 +158,12 @@ const HomePage = ({
         {/* === BOOKED LAUNDRY BOX === */}
         <div className="booked-laundry-box bg-white rounded-xl shadow-lg p-5 w-full max-w-md mb-6">
           <h2 className="text-lg font-bold mb-3 border-b-2 border-blue-500 pb-1">
-            Your Booked Laundry
+            Your Upcoming Bookings
           </h2>
-
           {loading && <p className="text-center text-gray-500">Loading your bookings...</p>}
           {error && <p className="text-center text-red-500">{error}</p>}
-
           {!loading && !error && bookedLaundry.length === 0 ? (
-            <p className="text-gray-500">No bookings yet.</p>
+            <p className="text-gray-500">No upcoming bookings.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300 text-sm text-left">

@@ -1,3 +1,4 @@
+// src/components/LaundryBookingPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createBooking, cancelBooking, getBookings, getMachines } from '../api';
@@ -35,8 +36,8 @@ const LaundryBookingPage = ({
     return { hour: Number.isFinite(h) ? h : 0, minute: Number.isFinite(m) ? m : 0 };
   };
 
-  const selectedDayDate = selectedDay?.date instanceof Date 
-    ? selectedDay.date 
+  const selectedDayDate = selectedDay?.date instanceof Date
+    ? selectedDay.date
     : new Date(selectedDay?.date || Date.now());
 
   const startUtcFromSlot = (slotLabel) => {
@@ -57,10 +58,9 @@ const LaundryBookingPage = ({
       const bookings = await getBookings();
       const validBookings = Array.isArray(bookings) ? bookings : [];
       setAllBookings(validBookings);
-
-      const userId = localStorage.getItem('userId'); // store this on login
+      const userId = localStorage.getItem('userId'); // Store this on login
       const myBookings = validBookings.filter(
-        (b) => b.user?._id === userId || b.userId === userId
+        (b) => (b.user?._id === userId || b.userId === userId) && b.status === 'booked'
       );
       setUserBookings(myBookings);
     } catch (err) {
@@ -116,25 +116,21 @@ const LaundryBookingPage = ({
         setLoading(false);
         return;
       }
-
       const parts = slotId.split('_');
       const timeRange = parts[2];
       const startUtc = startUtcFromSlot(timeRange);
       const endUtc = startUtc.plus({ hours: 1 });
-
       const machine = machines.find((m) => m.name === machineName && m.type === machineType);
       if (!machine || !machine._id) {
         throw new Error(`Machine "${machineName}" not found`);
       }
       const machineId = machine._id.toString();
-
       const existingBooking = userBookings.find(
         (b) =>
           getBookingMachineId(b) === machineId &&
           isSameUtcHour(b.start, startUtc.toISO()) &&
           b.status === 'booked'
       );
-
       if (existingBooking) {
         await cancelBooking(existingBooking._id);
         await refreshBookings();
@@ -189,18 +185,15 @@ const LaundryBookingPage = ({
           Home
         </button>
       </div>
-
       <h1>
         Schedule for {selectedDay?.dayName}, {selectedDayDate.toDateString()}
       </h1>
-
       {error && (
         <p style={{ color: 'red', textAlign: 'center', fontWeight: 'bold', margin: '10px 0' }}>
           {error}
         </p>
       )}
       {loading && <p style={{ textAlign: 'center', color: '#3498db' }}>Loading...</p>}
-
       <div className="machine-list">
         {machines.length === 0 && !loading ? (
           <p style={{ textAlign: 'center', color: '#7f8c8d' }}>No machines available.</p>
@@ -217,7 +210,7 @@ const LaundryBookingPage = ({
                   alignItems: 'center',
                   gap: '8px',
                   fontSize: '1.2rem',
-                  margin: '12px 0'
+                  margin: '12px 0',
                 }}
               >
                 <span style={{ fontSize: '1.3rem' }}>
@@ -228,7 +221,6 @@ const LaundryBookingPage = ({
                   ({machine.type})
                 </span>
               </h3>
-
               {/* Time slots */}
               {openMachines[machine.name] && (
                 <div className="time-slots-grid">
@@ -236,38 +228,35 @@ const LaundryBookingPage = ({
                     const slotId = `${selectedDayDate.toDateString()}_${machine.name}_${slot}`;
                     const machineId = machine._id.toString();
                     const slotStartUtc = startUtcFromSlot(slot).toISO();
-
                     const isTaken = allBookings.some(
                       (b) =>
                         getBookingMachineId(b) === machineId &&
                         isSameUtcHour(b.start, slotStartUtc) &&
                         b.status === 'booked'
                     );
-
                     const isMine = userBookings.some(
                       (b) =>
                         getBookingMachineId(b) === machineId &&
                         isSameUtcHour(b.start, slotStartUtc) &&
                         b.status === 'booked'
                     );
-
                     return (
                       <div key={slotId} className="time-slot-item">
                         <span className="time-slot-label">{slot}</span>
                         <button
-                          onClick={() => (isMine ? toggleBooking(slotId, machine.name, machine.type) : !isTaken && toggleBooking(slotId, machine.name, machine.type))}
-                          className={`time-slot-button ${isMine ? 'unbook' : 'book'}`}
-                          disabled={loading || (!isMine && isTaken)}
+                          onClick={() => (!isTaken || isMine) && toggleBooking(slotId, machine.name, machine.type)}
+                          className={`time-slot-button ${isMine ? 'unbook' : isTaken ? 'taken' : 'book'}`}
+                          disabled={loading || (isTaken && !isMine)}
                           style={{
                             opacity: loading ? 0.6 : 1,
-                            cursor: loading || (!isMine && isTaken) ? 'not-allowed' : 'pointer',
+                            cursor: loading || (isTaken && !isMine) ? 'not-allowed' : 'pointer',
                             backgroundColor: isMine
                               ? '#e74c3c'
                               : isTaken
                               ? '#bdc3c7'
                               : '#2ecc71',
                             color: isTaken && !isMine ? '#7f8c8d' : 'white',
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
                           }}
                         >
                           {isMine ? 'Unbook' : isTaken ? 'Taken' : 'Book'}
@@ -281,14 +270,13 @@ const LaundryBookingPage = ({
           ))
         )}
       </div>
-
       {/* User bookings list */}
       <div className="booked-list">
         <h2 style={{ marginTop: '32px', borderBottom: '2px solid #3498db', paddingBottom: '8px' }}>
-          Your Bookings
+          Your Upcoming Bookings
         </h2>
         {userBookings.filter((b) => b.status === 'booked').length === 0 ? (
-          <p style={{ color: '#7f8c8d', fontStyle: 'italic' }}>No bookings this week.</p>
+          <p style={{ color: '#7f8c8d', fontStyle: 'italic' }}>No upcoming bookings.</p>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {userBookings
@@ -299,7 +287,6 @@ const LaundryBookingPage = ({
                 const m = booking.machine || {};
                 const machineName = m.name || m.code || 'Unknown Machine';
                 const machineType = m.type || 'Unknown Type';
-
                 return (
                   <li
                     key={booking._id}
@@ -311,7 +298,7 @@ const LaundryBookingPage = ({
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                     }}
                   >
                     <div>
@@ -335,7 +322,7 @@ const LaundryBookingPage = ({
                         borderRadius: '6px',
                         fontWeight: 'bold',
                         cursor: loading ? 'not-allowed' : 'pointer',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
                       }}
                       onMouseOver={(e) => !loading && (e.target.style.backgroundColor = '#c0392b')}
                       onMouseOut={(e) => !loading && (e.target.style.backgroundColor = '#e74c3c')}

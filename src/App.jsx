@@ -1,23 +1,21 @@
-// src/App.jsx   ←  REPLACE THIS ENTIRE FILE
+// src/App.jsx  ←  FINAL VERSION
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  Routes,
-  Route,
-  useNavigate,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import "./App.css";
+import { DateTime } from "luxon";
 import HomePage from "./components/HomePage";
 import LaundryBookingPage from "./components/LaundryBookingPage";
 import LoginForm from "./components/LoginForm";
 import AdminDashboard from "./components/AdminDashboard";
 import { getBookings, createBooking, cancelBooking } from "./api";
 
+const HELSINKI_TZ = "Europe/Helsinki";
+
 const months = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December"
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
 ];
-const weekdays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const machines = [
   { _id: "652a61a27f6b3cc934ea3001", name: "Washer 1", type: "washer" },
@@ -30,9 +28,9 @@ const MAX_WEEKLY_BOOKINGS = { washer: 2, dryer: 2 };
 
 const getWeekNumber = (date) => {
   const d = new Date(date);
-  d.setHours(0,0,0,0);
+  d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(),0,1);
+  const yearStart = new Date(d.getFullYear(), 0, 1);
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 };
 
@@ -47,31 +45,23 @@ const App = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  /* --------------------------------------------------------------
-     1. READ localStorage on every render
-     -------------------------------------------------------------- */
-  const token   = localStorage.getItem("token");
-  const role    = localStorage.getItem("role") || "user";
+  // User login data
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role") || "user";
   const loggedIn = !!token;
-
   const [isLoggedIn, setIsLoggedIn] = useState(loggedIn);
-  const [userRole,   setUserRole]   = useState(role);
+  const [userRole, setUserRole] = useState(role);
 
-  /* --------------------------------------------------------------
-     2. **FORCE RE‑RENDER** when localStorage changes from console
-     -------------------------------------------------------------- */
+  // React to localStorage changes
   useEffect(() => {
     const handler = () => {
       const newToken = localStorage.getItem("token");
-      const newRole  = localStorage.getItem("role") || "user";
+      const newRole = localStorage.getItem("role") || "user";
       setIsLoggedIn(!!newToken);
       setUserRole(newRole);
     };
-
-    // listen for storage events (works across tabs) + manual poll
     window.addEventListener("storage", handler);
-    const poll = setInterval(handler, 500);   // 0.5 s poll
-
+    const poll = setInterval(handler, 500);
     return () => {
       window.removeEventListener("storage", handler);
       clearInterval(poll);
@@ -85,16 +75,16 @@ const App = () => {
   };
 
   const getWeekKey = (date) =>
-    `${date.getFullYear()}-W${String(getWeekNumber(date)).padStart(2,"0")}`;
+    `${date.getFullYear()}-W${String(getWeekNumber(date)).padStart(2, "0")}`;
 
   const getWeekBookingStats = (weekKey) => {
     const weekBookings = bookings[weekKey] || [];
     const washerCount = weekBookings.filter(b => b.machineType === "washer").length;
-    const dryerCount   = weekBookings.filter(b => b.machineType === "dryer").length;
+    const dryerCount = weekBookings.filter(b => b.machineType === "dryer").length;
     return { washerCount, dryerCount };
   };
 
-  /* --------------------- FETCH BOOKINGS --------------------- */
+  /* -------------------- FETCH BOOKINGS -------------------- */
   useEffect(() => {
     if (!isLoggedIn) return;
     const fetchData = async () => {
@@ -112,7 +102,10 @@ const App = () => {
           if (!updatedBookings[weekKey]) updatedBookings[weekKey] = [];
 
           const machineName = b.machine?.name || b.machine || "unknown";
-          const hour = new Date(b.start).getHours();
+
+          // ✅ Keep in UTC here (no conversion)
+          const startDt = DateTime.fromISO(b.start, { zone: "utc" });
+          const hour = startDt.hour; // UTC hour only
           const slotId = `${machineName}_${hour}`;
 
           updatedBookings[weekKey].push({ ...b, slotId });
@@ -122,6 +115,7 @@ const App = () => {
         setBookings(updatedBookings);
         setSelectedSlots(updatedSelectedSlots);
       } catch (e) {
+        console.error(e);
         setError("Failed to fetch bookings.");
       } finally {
         setLoading(false);
@@ -130,11 +124,11 @@ const App = () => {
     fetchData();
   }, [isLoggedIn, userRole]);
 
-  /* --------------------- LOGIN / LOGOUT --------------------- */
+  /* -------------------- LOGIN / LOGOUT -------------------- */
   const handleLoginSuccess = (token, userId, role) => {
     if (token) localStorage.setItem("token", token);
     if (userId) localStorage.setItem("userId", userId);
-    if (role)   localStorage.setItem("role", role);
+    if (role) localStorage.setItem("role", role);
     navigate(role === "admin" ? "/admin" : "/", { replace: true });
   };
 
@@ -148,7 +142,7 @@ const App = () => {
     navigate("/login", { replace: true });
   };
 
-  /* --------------------- CALENDAR --------------------- */
+  /* -------------------- CALENDAR -------------------- */
   const handleMonthChange = (dir) => {
     let m = currentMonth + dir;
     let y = currentYear;
@@ -165,7 +159,7 @@ const App = () => {
     navigate("/laundry");
   };
 
-  /* --------------------- BOOKING --------------------- */
+  /* -------------------- BOOKING -------------------- */
   const toggleBooking = async (slotId, machineName, machineType) => {
     const weekKey = getWeekKey(effectiveSelectedDay.date);
     const weekBookings = bookings[weekKey] || [];
@@ -181,9 +175,15 @@ const App = () => {
           ...p,
           [weekKey]: p[weekKey]?.filter(b => b.slotId !== slotId) || []
         }));
-        setSelectedSlots(p => { const u = { ...p }; delete u[slotId]; return u; });
+        setSelectedSlots(p => {
+          const u = { ...p };
+          delete u[slotId];
+          return u;
+        });
         setError(null);
-      } catch { setError("Cancel failed."); }
+      } catch {
+        setError("Cancel failed.");
+      }
       return;
     }
 
@@ -197,22 +197,36 @@ const App = () => {
     }
 
     const startHour = Number(slotId.split("_").pop());
-    const start = new Date(effectiveSelectedDay.date);
-    start.setHours(startHour,0,0,0);
+    const base = effectiveSelectedDay.date;
+    const startLocal = DateTime.fromObject(
+      {
+        year: base.getFullYear(),
+        month: base.getMonth() + 1,
+        day: base.getDate(),
+        hour: startHour,
+        minute: 0,
+      },
+      { zone: HELSINKI_TZ }
+    );
+
+    const startISO = startLocal.toUTC().toISO({ suppressMilliseconds: true });
+    const endISO = startLocal.plus({ hours: 1 }).toUTC().toISO({ suppressMilliseconds: true });
 
     const machine = machines.find(m => m.name === machineName);
     if (!machine) { setError("Machine not found"); return; }
 
     try {
-      const saved = await createBooking({ machineId: machine._id, start });
-      const newSlotId = `${machineName}_${startHour}`;
+      const saved = await createBooking({ machineId: machine._id, start: startISO, end: endISO });
+      const newSlotId = `${machineName}_${startLocal.hour}`;
       setBookings(p => ({
         ...p,
         [weekKey]: [...(p[weekKey] || []), { ...saved, slotId: newSlotId }]
       }));
       setSelectedSlots(p => ({ ...p, [newSlotId]: true }));
       setError(null);
-    } catch { setError("Booking failed."); }
+    } catch {
+      setError("Booking failed.");
+    }
   };
 
   const handleUnbook = async (bookingId) => {
@@ -227,7 +241,9 @@ const App = () => {
         return u;
       });
       setError(null);
-    } catch { setError("Unbook failed."); }
+    } catch {
+      setError("Unbook failed.");
+    }
   };
 
   const selectedWeekKey = getWeekKey(effectiveSelectedDay.date);
@@ -237,7 +253,7 @@ const App = () => {
     []
   );
 
-  /* --------------------- RENDER --------------------- */
+  /* -------------------- RENDER -------------------- */
   return (
     <>
       {loading && <div className="text-center p-8">Loading…</div>}
@@ -248,74 +264,89 @@ const App = () => {
         </div>
       )}
 
-      {/* DEBUG BANNER – you will see it change instantly */}
       {isLoggedIn && (
-        <div className={`p-2 text-center text-sm font-bold ${userRole === "admin" ? "bg-purple-600 text-white" : "bg-blue-600 text-white"}`}>
+        <div
+          className={`p-2 text-center text-sm font-bold ${
+            userRole === "admin" ? "bg-purple-600 text-white" : "bg-blue-600 text-white"
+          }`}
+        >
           Logged in as <span className="uppercase">{userRole}</span>
           {userRole === "admin" && " | ADMIN PANEL ACTIVE"}
         </div>
       )}
 
       <Routes>
-        {/* ADMIN */}
+        {/* Admin */}
         <Route
           path="/admin"
-          element={isLoggedIn && userRole === "admin" ? <AdminDashboard /> : <Navigate to="/login" replace />}
+          element={
+            isLoggedIn && userRole === "admin"
+              ? <AdminDashboard />
+              : <Navigate to="/login" replace />
+          }
         />
 
-        {/* HOME */}
+        {/* Home */}
         <Route
           path="/"
-          element={isLoggedIn ? (
-            <HomePage
-              today={today}
-              currentMonth={currentMonth}
-              currentYear={currentYear}
-              setCurrentMonth={setCurrentMonth}
-              setCurrentYear={setCurrentYear}
-              selectedDay={effectiveSelectedDay.day}
-              setSelectedDay={setSelectedDay}
-              bookings={bookings}
-              selectedWeekKey={selectedWeekKey}
-              weekBookings={weekBookings}
-              handleDayClick={handleDayClick}
-              handleMonthChange={handleMonthChange}
-              months={months}
-              weekdays={weekdays}
-              handleLogout={handleLogout}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )}
+          element={
+            isLoggedIn ? (
+              <HomePage
+                today={today}
+                currentMonth={currentMonth}
+                currentYear={currentYear}
+                setCurrentMonth={setCurrentMonth}
+                setCurrentYear={setCurrentYear}
+                selectedDay={effectiveSelectedDay}
+                setSelectedDay={setSelectedDay}
+                bookings={bookings}
+                selectedWeekKey={selectedWeekKey}
+                weekBookings={weekBookings}
+                handleDayClick={handleDayClick}
+                handleMonthChange={handleMonthChange}
+                months={months}
+                weekdays={weekdays}
+                handleLogout={handleLogout}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
 
-        {/* LAUNDRY */}
+        {/* Laundry */}
         <Route
           path="/laundry"
-          element={isLoggedIn ? (
-            <LaundryBookingPage
-              selectedDay={effectiveSelectedDay}
-              machines={machines}
-              timeSlots={timeSlots}
-              selectedSlots={selectedSlots}
-              toggleBooking={toggleBooking}
-              weekBookings={weekBookings}
-              handleUnbook={handleUnbook}
-              selectedWeekKey={selectedWeekKey}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )}
+          element={
+            isLoggedIn ? (
+              <LaundryBookingPage
+                selectedDay={effectiveSelectedDay}
+                machines={machines}
+                timeSlots={timeSlots}
+                selectedSlots={selectedSlots}
+                toggleBooking={toggleBooking}
+                weekBookings={weekBookings}
+                handleUnbook={handleUnbook}
+                selectedWeekKey={selectedWeekKey}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
 
-        {/* LOGIN */}
+        {/* Login */}
         <Route
           path="/login"
-          element={isLoggedIn ? (
-            userRole === "admin" ? <Navigate to="/admin" replace /> : <Navigate to="/" replace />
-          ) : (
-            <LoginForm onLoginSuccess={handleLoginSuccess} />
-          )}
+          element={
+            isLoggedIn ? (
+              userRole === "admin"
+                ? <Navigate to="/admin" replace />
+                : <Navigate to="/" replace />
+            ) : (
+              <LoginForm onLoginSuccess={handleLoginSuccess} />
+            )
+          }
         />
 
         {/* 404 */}
