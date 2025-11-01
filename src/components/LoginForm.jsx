@@ -1,21 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import washerImg from '../assets/washer.jpg';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { jwtDecode } from "jwt-decode"; // ✅ fixed import
+import washerImg from "../assets/washer.jpg";
+
 
 const LoginForm = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [wsMessage, setWsMessage] = useState('');
+  const [wsMessage, setWsMessage] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+  const API_BASE_URL =
+    process.env.REACT_APP_API_URL || "http://localhost:5000/api/v1";
 
-  // ✅ Check server connection
+  /* ✅ SERVER CONNECTION CHECK */
   useEffect(() => {
     let retryCount = 0;
     const maxRetries = 3;
@@ -26,15 +29,15 @@ const LoginForm = ({ onLoginSuccess }) => {
       if (wsConnected) return;
       try {
         const res = await axios.get(`${API_BASE_URL}/status`, { timeout: 5000 });
-        setWsMessage(`✅ Server connected: ${res.data.status || 'OK'}`);
+        setWsMessage(`✅ Server connected: ${res.data.status || "OK"}`);
         setWsConnected(true);
-        setError('');
+        setError("");
         retryCount = 0;
       } catch (err) {
         if (err.response?.status === 404) {
-          setWsMessage('⚠️ Server up, but /status endpoint not found.');
+          setWsMessage("⚠️ Server up, but /status endpoint not found.");
           setWsConnected(true);
-          setError('');
+          setError("");
         } else {
           handleConnectionFailure(err);
         }
@@ -42,16 +45,16 @@ const LoginForm = ({ onLoginSuccess }) => {
     };
 
     const handleConnectionFailure = (err) => {
-      if (err.code === 'ERR_NETWORK' || err.response?.status === 0) {
-        setWsMessage('❌ Network error: Check backend CORS or if server is running.');
+      if (err.code === "ERR_NETWORK" || err.response?.status === 0) {
+        setWsMessage("❌ Network error: Check backend CORS or if server is running.");
       } else if (retryCount < maxRetries) {
         retryCount++;
         setWsMessage(`Retrying (${retryCount}/${maxRetries})...`);
         setTimeout(checkServerStatus, retryDelay);
       } else {
-        setWsMessage('🚫 Cannot connect to server.');
+        setWsMessage("🚫 Cannot connect to server.");
         setWsConnected(false);
-        setError('Network error: Server unreachable.');
+        setError("Network error: Server unreachable.");
       }
     };
 
@@ -60,42 +63,41 @@ const LoginForm = ({ onLoginSuccess }) => {
     return () => clearInterval(interval);
   }, [API_BASE_URL, wsConnected]);
 
-  // ✅ Email validation
+  /* ✅ VALIDATIONS */
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  // ✅ Toggle login/register mode
   const toggleMode = () => {
     setIsRegistering(!isRegistering);
-    setError('');
-    setEmail('');
-    setPassword('');
-    setName('');
-    setConfirmPassword('');
+    setError("");
+    setEmail("");
+    setPassword("");
+    setName("");
+    setConfirmPassword("");
   };
 
-  // ✅ Form submit handler
+  /* ✅ HANDLE LOGIN / REGISTER SUBMIT */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     if (!email || !password || (isRegistering && (!name || !confirmPassword))) {
-      setError('All fields are required.');
+      setError("All fields are required.");
       setLoading(false);
       return;
     }
     if (!validateEmail(email)) {
-      setError('Invalid email format.');
+      setError("Invalid email format.");
       setLoading(false);
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError("Password must be at least 6 characters.");
       setLoading(false);
       return;
     }
     if (isRegistering && password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError("Passwords do not match.");
       setLoading(false);
       return;
     }
@@ -105,92 +107,133 @@ const LoginForm = ({ onLoginSuccess }) => {
       : `${API_BASE_URL}/user/login`;
 
     const payload = isRegistering
-      ? { email: email.trim(), password: password.trim(), name: name.trim(), confirmPassword: confirmPassword.trim() }
-      : { email: email.trim(), password: password.trim() };
+      ? {
+          email: email.trim(),
+          password: password.trim(),
+          name: name.trim(),
+          confirmPassword: confirmPassword.trim(),
+        }
+      : {
+          email: email.trim(),
+          password: password.trim(),
+        };
 
     try {
       const response = await axios.post(url, payload, {
         withCredentials: true,
         timeout: 10000,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
       });
 
       const data = response.data;
+
       if (isRegistering) {
-        alert('✅ Registration successful! Please log in.');
+        alert("✅ Registration successful! Please log in.");
         toggleMode();
       } else if (data.data?.accessToken) {
-        localStorage.setItem('token', data.data.accessToken);
-        onLoginSuccess(data.data.accessToken);
+        const token = data.data.accessToken;
+        localStorage.setItem("token", token);
+
+        try {
+          // ✅ Decode token to extract role and user ID
+          const decoded = jwtDecode(token);
+          if (decoded._id) localStorage.setItem("userId", decoded._id);
+          if (decoded.role) localStorage.setItem("role", decoded.role);
+          onLoginSuccess(token, decoded._id, decoded.role);
+        } catch (decodeError) {
+          console.error("❌ Failed to decode token:", decodeError);
+          onLoginSuccess(token);
+        }
       } else {
-        setError('Login failed: No token received.');
+        setError("Login failed: No token received.");
       }
     } catch (err) {
-      if (err.response?.status === 500) setError('Server error: Check backend logs.');
-      else if (err.response?.status === 400) setError(err.response.data.message || 'Invalid input.');
-      else if (err.code === 'ERR_NETWORK') setError('Network error: Server unreachable.');
-      else if (err.response?.status === 0) setError('CORS error: Request blocked.');
-      else if (err.response?.status === 404) setError('Endpoint not found.');
-      else setError(err.response?.data?.message || 'Request failed.');
+      if (err.response?.status === 500)
+        setError("Server error: Check backend logs.");
+      else if (err.response?.status === 400)
+        setError(err.response.data.message || "Invalid input.");
+      else if (err.code === "ERR_NETWORK")
+        setError("Network error: Server unreachable.");
+      else if (err.response?.status === 0)
+        setError("CORS error: Request blocked.");
+      else if (err.response?.status === 404)
+        setError("Endpoint not found.");
+      else setError(err.response?.data?.message || "Request failed.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Styles
+  /* ✅ STYLES */
   const backgroundStyle = {
     backgroundImage: `url(${washerImg})`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    height: '100vh',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    height: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   };
 
   const formStyle = {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    padding: '2rem 3rem',
-    borderRadius: '12px',
-    boxShadow: '0 0 20px rgba(0,0,0,0.3)',
-    width: '400px',
-    maxWidth: '95%',
-    textAlign: 'center',
+    backgroundColor: "rgba(255,255,255,0.95)",
+    padding: "2rem 3rem",
+    borderRadius: "12px",
+    boxShadow: "0 0 20px rgba(0,0,0,0.3)",
+    width: "400px",
+    maxWidth: "95%",
+    textAlign: "center",
   };
 
   const inputStyle = {
-    width: '100%',
-    padding: '12px',
-    margin: '12px 0',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '1rem',
-    boxSizing: 'border-box',
+    width: "100%",
+    padding: "12px",
+    margin: "12px 0",
+    borderRadius: "6px",
+    border: "1px solid #ccc",
+    fontSize: "1rem",
+    boxSizing: "border-box",
   };
 
   const buttonStyle = {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    fontSize: '1.1rem',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: loading ? 'not-allowed' : 'pointer',
+    width: "100%",
+    padding: "12px",
+    backgroundColor: "#007bff",
+    color: "white",
+    fontSize: "1.1rem",
+    border: "none",
+    borderRadius: "6px",
+    cursor: loading ? "not-allowed" : "pointer",
     opacity: loading ? 0.6 : 1,
-    transition: 'opacity 0.2s',
+    transition: "opacity 0.2s",
   };
 
-  const errorStyle = { color: '#d32f2f', margin: '10px 0', fontSize: '0.9rem' };
-  const wsMessageStyle = { color: wsConnected ? '#2e7d32' : '#d32f2f', margin: '10px 0', fontSize: '0.9rem' };
-  const toggleLinkStyle = { marginTop: '12px', cursor: 'pointer', color: '#007bff', fontSize: '0.9rem', textDecoration: 'underline' };
+  const errorStyle = {
+    color: "#d32f2f",
+    margin: "10px 0",
+    fontSize: "0.9rem",
+  };
 
-  // ✅ Render
+  const wsMessageStyle = {
+    color: wsConnected ? "#2e7d32" : "#d32f2f",
+    margin: "10px 0",
+    fontSize: "0.9rem",
+  };
+
+  const toggleLinkStyle = {
+    marginTop: "12px",
+    cursor: "pointer",
+    color: "#007bff",
+    fontSize: "0.9rem",
+    textDecoration: "underline",
+  };
+
+  /* ✅ RENDER */
   return (
     <div style={backgroundStyle}>
       <form onSubmit={handleSubmit} style={formStyle}>
-        <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem' }}>
-          {isRegistering ? 'Register' : 'Login'}
+        <h2 style={{ fontSize: "1.8rem", marginBottom: "1.5rem" }}>
+          {isRegistering ? "Register" : "Login"}
         </h2>
 
         {isRegistering && (
@@ -244,20 +287,24 @@ const LoginForm = ({ onLoginSuccess }) => {
         {error && <p style={errorStyle}>{error}</p>}
         {wsMessage && <p style={wsMessageStyle}>{wsMessage}</p>}
 
-        <button type="submit" style={buttonStyle} disabled={loading || !wsConnected}>
+        <button
+          type="submit"
+          style={buttonStyle}
+          disabled={loading || !wsConnected}
+        >
           {loading
             ? isRegistering
-              ? 'Registering...'
-              : 'Logging in...'
+              ? "Registering..."
+              : "Logging in..."
             : isRegistering
-              ? 'Register'
-              : 'Login'}
+            ? "Register"
+            : "Login"}
         </button>
 
         <p style={toggleLinkStyle} onClick={toggleMode}>
           {isRegistering
-            ? 'Already have an account? Login'
-            : 'No account? Register'}
+            ? "Already have an account? Login"
+            : "No account? Register"}
         </p>
       </form>
     </div>

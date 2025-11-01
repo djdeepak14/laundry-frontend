@@ -1,4 +1,3 @@
-// src/components/LaundryBookingPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createBooking, cancelBooking, getBookings, getMachines } from '../api';
@@ -24,8 +23,10 @@ const LaundryBookingPage = ({
   const [machines, setMachines] = useState([]);
   const navigate = useNavigate();
 
-  // --- Helper functions ---
-  const getBookingMachineId = (b) => (b?.machine?._id || b?.machine || '').toString();
+  const getBookingMachineId = (b) => {
+    const id = b?.machineId || b?.machine?._id || b?.machine?.id || '';
+    return id.toString();
+  };
 
   const parseSlotStartHour = (slotLabel) => {
     const start = slotLabel.split('-')[0].trim();
@@ -33,8 +34,9 @@ const LaundryBookingPage = ({
     return { hour: Number.isFinite(h) ? h : 0, minute: Number.isFinite(m) ? m : 0 };
   };
 
-  const selectedDayDate =
-    selectedDay?.date instanceof Date ? selectedDay.date : new Date(selectedDay?.date);
+  const selectedDayDate = selectedDay?.date instanceof Date 
+    ? selectedDay.date 
+    : new Date(selectedDay?.date || Date.now());
 
   const startUtcFromSlot = (slotLabel) => {
     const { hour, minute } = parseSlotStartHour(slotLabel);
@@ -44,16 +46,16 @@ const LaundryBookingPage = ({
   };
 
   const isSameUtcHour = (isoA, isoB) => {
-    const a = DateTime.fromISO(isoA, { zone: 'utc' }).set({ second: 0, millisecond: 0 });
-    const b = DateTime.fromISO(isoB, { zone: 'utc' }).set({ second: 0, millisecond: 0 });
+    const a = DateTime.fromISO(isoA, { zone: 'utc' }).startOf('hour');
+    const b = DateTime.fromISO(isoB, { zone: 'utc' }).startOf('hour');
     return a.toMillis() === b.toMillis();
   };
 
-  // === REFRESH BOOKINGS ===
   const refreshBookings = useCallback(async (retries = 2) => {
     try {
       const bookings = await getBookings();
-      setUserBookings(Array.isArray(bookings) ? bookings : []);
+      const validBookings = Array.isArray(bookings) ? bookings : [];
+      setUserBookings(validBookings);
     } catch (err) {
       if (retries > 0) {
         await new Promise((r) => setTimeout(r, 600));
@@ -64,7 +66,6 @@ const LaundryBookingPage = ({
     }
   }, []);
 
-  // === LOAD MACHINES AND BOOKINGS ===
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -79,7 +80,6 @@ const LaundryBookingPage = ({
             type: m.type || 'unknown',
           }))
           .filter((m) => m._id);
-        console.log('Fetched machines:', fetchedMachines);
         setMachines(fetchedMachines);
         await refreshBookings();
       } catch (err) {
@@ -99,7 +99,6 @@ const LaundryBookingPage = ({
     }));
   };
 
-  // === BOOK / UNBOOK FUNCTION ===
   const toggleBooking = async (slotId, machineName, machineType) => {
     setError('');
     setLoading(true);
@@ -107,6 +106,7 @@ const LaundryBookingPage = ({
       const token = localStorage.getItem('token');
       if (!token) {
         setError('Please log in to book or unbook a slot.');
+        setLoading(false);
         return;
       }
 
@@ -121,22 +121,17 @@ const LaundryBookingPage = ({
       }
       const machineId = machine._id.toString();
 
-      const isBooked = userBookings.some(
+      const existingBooking = userBookings.find(
         (b) =>
           getBookingMachineId(b) === machineId &&
           isSameUtcHour(b.start, startUtc.toISO()) &&
           b.status === 'booked'
       );
 
-      if (isBooked) {
-        const toCancel = userBookings.find(
-          (b) =>
-            getBookingMachineId(b) === machineId && isSameUtcHour(b.start, startUtc.toISO())
-        );
-        if (!toCancel?._id) throw new Error('Booking not found for unbooking');
-        await cancelBooking(toCancel._id);
+      if (existingBooking) {
+        await cancelBooking(existingBooking._id);
         await refreshBookings();
-        alert(`🧺 Unbooked ${machine.name} successfully!`);
+        alert(`Unbooked ${machine.name} successfully!`);
       } else {
         const payload = {
           machineId,
@@ -145,11 +140,16 @@ const LaundryBookingPage = ({
         };
         await createBooking(payload);
         await refreshBookings();
-        alert(`✅ Booked ${machine.name} successfully!`);
+        alert(`Booked ${machine.name} successfully!`);
       }
     } catch (err) {
       console.error('Booking error:', err);
-      setError(err.message || 'Booking error occurred.');
+      const msg = err.message || 'Booking error occurred.';
+      if (msg.includes('Not authorized')) {
+        setError('You can only cancel your own bookings.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -161,10 +161,15 @@ const LaundryBookingPage = ({
     try {
       await cancelBooking(bookingId);
       await refreshBookings();
-      alert('❌ Booking cancelled successfully!');
+      alert('Booking cancelled successfully!');
     } catch (err) {
       console.error('Cancel booking error:', err);
-      setError(err.message || 'Failed to cancel booking.');
+      const msg = err.message || 'Failed to cancel booking.';
+      if (msg.includes('Not authorized')) {
+        setError('You can only cancel your own bookings.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -172,7 +177,6 @@ const LaundryBookingPage = ({
 
   return (
     <div className="container">
-      {/* === HEADER === */}
       <div className="home-header">
         <button className="home-header-button" onClick={() => navigate('/')}>
           Home
@@ -183,20 +187,42 @@ const LaundryBookingPage = ({
         Schedule for {selectedDay?.dayName}, {selectedDayDate.toDateString()}
       </h1>
 
-      {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
-      {loading && <p>Loading...</p>}
+      {error && (
+        <p style={{ color: 'red', textAlign: 'center', fontWeight: 'bold', margin: '10px 0' }}>
+          {error}
+        </p>
+      )}
+      {loading && <p style={{ textAlign: 'center', color: '#3498db' }}>Loading...</p>}
 
-      {/* === MACHINE LIST === */}
       <div className="machine-list">
         {machines.length === 0 && !loading ? (
-          <p>No machines available.</p>
+          <p style={{ textAlign: 'center', color: '#7f8c8d' }}>No machines available.</p>
         ) : (
           machines.map((machine) => (
             <div key={machine._id} className="machine-schedule">
-              <h3 onClick={() => toggleMachineOpen(machine.name)}>
-                {machine.name} ({machine.type}) {openMachines[machine.name] ? '▲' : '▼'}
+              {/* Machine title with arrow toggle */}
+              <h3
+                onClick={() => toggleMachineOpen(machine.name)}
+                style={{
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '1.2rem',
+                  margin: '12px 0'
+                }}
+              >
+                <span style={{ fontSize: '1.3rem' }}>
+                  {openMachines[machine.name] ? '▼' : '▶'}
+                </span>
+                <strong>{machine.name}</strong>
+                <span style={{ fontWeight: 'normal', color: '#7f8c8d' }}>
+                  ({machine.type})
+                </span>
               </h3>
 
+              {/* Time slots */}
               {openMachines[machine.name] && (
                 <div className="time-slots-grid">
                   {timeSlots.map((slot) => {
@@ -218,6 +244,10 @@ const LaundryBookingPage = ({
                           onClick={() => toggleBooking(slotId, machine.name, machine.type)}
                           className={`time-slot-button ${isBooked ? 'unbook' : 'book'}`}
                           disabled={loading}
+                          style={{
+                            opacity: loading ? 0.6 : 1,
+                            cursor: loading ? 'not-allowed' : 'pointer'
+                          }}
                         >
                           {isBooked ? 'Unbook' : 'Book'}
                         </button>
@@ -231,34 +261,65 @@ const LaundryBookingPage = ({
         )}
       </div>
 
-      {/* === MY BOOKINGS === */}
+      {/* User bookings list */}
       <div className="booked-list">
-        <h2>Booked Laundry</h2>
+        <h2 style={{ marginTop: '32px', borderBottom: '2px solid #3498db', paddingBottom: '8px' }}>
+          Your Bookings
+        </h2>
         {userBookings.filter((b) => b.status === 'booked').length === 0 ? (
-          <p>No bookings this week.</p>
+          <p style={{ color: '#7f8c8d', fontStyle: 'italic' }}>No bookings this week.</p>
         ) : (
-          <ul>
+          <ul style={{ listStyle: 'none', padding: 0 }}>
             {userBookings
               .filter((b) => b.status === 'booked')
               .map((booking) => {
                 const startLocal = DateTime.fromISO(booking.start, { zone: 'utc' }).setZone(HELSINKI_TZ);
                 const endLocal = DateTime.fromISO(booking.end, { zone: 'utc' }).setZone(HELSINKI_TZ);
-                const m = booking.machine;
-                const machineName =
-                  typeof m === 'object' && m !== null ? m.name || m.code || 'Unknown Machine' : 'Unknown Machine';
-                const machineType =
-                  typeof m === 'object' && m !== null ? m.type || 'Unknown Type' : 'Unknown Type';
+                const m = booking.machine || {};
+                const machineName = m.name || m.code || 'Unknown Machine';
+                const machineType = m.type || 'Unknown Type';
 
                 return (
-                  <li key={booking._id}>
+                  <li
+                    key={booking._id}
+                    style={{
+                      marginBottom: '16px',
+                      padding: '12px',
+                      backgroundColor: '#f8f9fa',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    }}
+                  >
                     <div>
-                      <strong>{machineName}</strong> ({machineType})<br />
-                      {startLocal.toFormat('cccc, dd LLL yyyy')}
-                      <br />
-                      {startLocal.toFormat('HH:mm')} - {endLocal.toFormat('HH:mm')}
+                      <strong style={{ color: '#2c3e50' }}>{machineName}</strong>
+                      <span style={{ color: '#7f8c8d' }}> ({machineType})</span><br />
+                      <span style={{ fontSize: '0.95rem', color: '#34495e' }}>
+                        {startLocal.toFormat('cccc, dd LLL yyyy')}
+                      </span><br />
+                      <span style={{ fontWeight: 'bold', color: '#27ae60' }}>
+                        {startLocal.toFormat('HH:mm')} - {endLocal.toFormat('HH:mm')}
+                      </span>
                     </div>
-                    <button onClick={() => handleCancel(booking._id)} disabled={loading}>
-                      Cancel
+                    <button
+                      onClick={() => handleCancel(booking._id)}
+                      disabled={loading}
+                      style={{
+                        backgroundColor: loading ? '#95a5a6' : '#e74c3c',
+                        color: 'white',
+                        padding: '8px 16px',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontWeight: 'bold',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={(e) => !loading && (e.target.style.backgroundColor = '#c0392b')}
+                      onMouseOut={(e) => !loading && (e.target.style.backgroundColor = '#e74c3c')}
+                    >
+                      {loading ? 'Canceling...' : 'Cancel'}
                     </button>
                   </li>
                 );
