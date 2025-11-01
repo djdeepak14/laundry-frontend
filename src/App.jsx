@@ -6,7 +6,7 @@ import HomePage from "./components/HomePage";
 import LaundryBookingPage from "./components/LaundryBookingPage";
 import LoginForm from "./components/LoginForm";
 import AdminDashboard from "./components/AdminDashboard";
-import { getBookings, createBooking, cancelBooking } from "./api";
+import { getBookings, createBooking, cancelBooking, getMachines } from "./api";
 
 const HELSINKI_TZ = "Europe/Helsinki";
 
@@ -15,13 +15,6 @@ const months = [
   "July", "August", "September", "October", "November", "December"
 ];
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const machines = [
-  { _id: "652a61a27f6b3cc934ea3001", name: "Washer 1", type: "washer" },
-  { _id: "652a61a27f6b3cc934ea3002", name: "Washer 2", type: "washer" },
-  { _id: "652a61a27f6b3cc934ea3003", name: "Dryer 1", type: "dryer" },
-  { _id: "652a61a27f6b3cc934ea3004", name: "Dryer 2", type: "dryer" },
-];
 
 const MAX_BOOKINGS = { washer: 2, dryer: 2 };
 
@@ -32,6 +25,7 @@ const App = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [selectedSlots, setSelectedSlots] = useState({});
+  const [machines, setMachines] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -79,29 +73,31 @@ const App = () => {
     return { washerCount, dryerCount, latestWasherEnd, latestDryerEnd };
   };
 
-  // Fetch user bookings
+  // Fetch user bookings and machines
   useEffect(() => {
     if (!isLoggedIn) return;
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await getBookings();
-        const arr = Array.isArray(data) ? data : data?.data || [];
-        const updatedBookings = arr.map(b => ({
+        const [bookingData, machineData] = await Promise.all([getBookings(), getMachines()]);
+        const bookingsArr = Array.isArray(bookingData) ? bookingData : bookingData?.data || [];
+        const machinesArr = Array.isArray(machineData) ? machineData : machineData?.data || [];
+        const updatedBookings = bookingsArr.map(b => ({
           ...b,
-          slotId: `${b.machine?.name || b.machine || "unknown"}_${DateTime.fromISO(b.start, { zone: "utc" }).hour}`,
+          slotId: `${b.machine?.name || b.machine || "unknown"}_${DateTime.fromISO(b.start, { zone: "utc" }).setZone(HELSINKI_TZ).hour}`,
           machine: { ...b.machine, type: b.machine?.type || "unknown" }
         }));
         setBookings(updatedBookings);
+        setMachines(machinesArr);
         const updatedSelectedSlots = {};
         updatedBookings.forEach(b => {
-          updatedSelectedSlots[b.slotId] = true;
+          updatedSelectedSlots[b.slotId] = b.status === "booked";
         });
         setSelectedSlots(updatedSelectedSlots);
       } catch (e) {
         console.error(e);
-        setError("Failed to fetch bookings.");
+        setError("Failed to fetch data.");
       } finally {
         setLoading(false);
       }
@@ -114,6 +110,8 @@ const App = () => {
     if (token) localStorage.setItem("token", token);
     if (userId) localStorage.setItem("userId", userId);
     if (role) localStorage.setItem("role", role);
+    setIsLoggedIn(true);
+    setUserRole(role);
     navigate(role === "admin" ? "/admin" : "/", { replace: true });
   };
 
@@ -124,6 +122,7 @@ const App = () => {
     setUserRole("user");
     setBookings([]);
     setSelectedSlots({});
+    setMachines([]);
     setSelectedDay(null);
     navigate("/login", { replace: true });
   };
@@ -149,10 +148,9 @@ const App = () => {
   // Handle booking or unbooking
   const toggleBooking = async (slotId, machineName, machineType) => {
     const { washerCount, dryerCount, latestWasherEnd, latestDryerEnd } = getBookingStats();
-    const isBooked = bookings.some(b => b.slotId === slotId && b.status === "booked");
+    const isBooked = selectedSlots[slotId];
     const now = Date.now();
 
-    // If unbooking
     if (isBooked) {
       const booking = bookings.find(b => b.slotId === slotId && b.status === "booked");
       if (!booking) return;
@@ -171,23 +169,21 @@ const App = () => {
       return;
     }
 
-    // Lock until booked time passes
     if (machineType === "washer" && latestWasherEnd > now) {
       const nextTime = DateTime.fromJSDate(new Date(latestWasherEnd), { zone: "utc" })
         .setZone(HELSINKI_TZ)
-        .toFormat("HH:mm");
-      setError(`You must wait until your last washer booking ends at ${nextTime} EET before booking another.`);
+        .toFormat("yyyy-MM-dd HH:mm");
+      setError(`You must wait until your last washer booking ends on ${nextTime} EET before booking another.`);
       return;
     }
     if (machineType === "dryer" && latestDryerEnd > now) {
       const nextTime = DateTime.fromJSDate(new Date(latestDryerEnd), { zone: "utc" })
         .setZone(HELSINKI_TZ)
-        .toFormat("HH:mm");
-      setError(`You must wait until your last dryer booking ends at ${nextTime} EET before booking another.`);
+        .toFormat("yyyy-MM-dd HH:mm");
+      setError(`You must wait until your last dryer booking ends on ${nextTime} EET before booking another.`);
       return;
     }
 
-    // Check 2-booking limit
     if (machineType === "washer" && washerCount >= MAX_BOOKINGS.washer) {
       setError("You have reached the maximum of 2 active washer bookings.");
       return;
@@ -197,8 +193,7 @@ const App = () => {
       return;
     }
 
-    // Normal booking flow
-    const startHour = Number(slotId.split("_").pop());
+    const startHour = Number(slotId.split("_")[1]);
     const base = effectiveSelectedDay.date;
     const startLocal = DateTime.fromObject(
       {
@@ -284,7 +279,6 @@ const App = () => {
       )}
 
       <Routes>
-        {/* Admin */}
         <Route
           path="/admin"
           element={
@@ -293,8 +287,6 @@ const App = () => {
               : <Navigate to="/login" replace />
           }
         />
-
-        {/* Home */}
         <Route
           path="/"
           element={
@@ -319,8 +311,6 @@ const App = () => {
             )
           }
         />
-
-        {/* Laundry */}
         <Route
           path="/laundry"
           element={
@@ -339,8 +329,6 @@ const App = () => {
             )
           }
         />
-
-        {/* Login */}
         <Route
           path="/login"
           element={
@@ -353,8 +341,6 @@ const App = () => {
             )
           }
         />
-
-        {/* 404 */}
         <Route
           path="*"
           element={
