@@ -19,6 +19,7 @@ const LaundryBookingPage = ({
   const [openMachines, setOpenMachines] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [allBookings, setAllBookings] = useState([]);
   const [userBookings, setUserBookings] = useState([]);
   const [machines, setMachines] = useState([]);
   const navigate = useNavigate();
@@ -55,7 +56,13 @@ const LaundryBookingPage = ({
     try {
       const bookings = await getBookings();
       const validBookings = Array.isArray(bookings) ? bookings : [];
-      setUserBookings(validBookings);
+      setAllBookings(validBookings);
+
+      const userId = localStorage.getItem('userId'); // store this on login
+      const myBookings = validBookings.filter(
+        (b) => b.user?._id === userId || b.userId === userId
+      );
+      setUserBookings(myBookings);
     } catch (err) {
       if (retries > 0) {
         await new Promise((r) => setTimeout(r, 600));
@@ -200,7 +207,7 @@ const LaundryBookingPage = ({
         ) : (
           machines.map((machine) => (
             <div key={machine._id} className="machine-schedule">
-              {/* Machine title with arrow toggle */}
+              {/* Machine title */}
               <h3
                 onClick={() => toggleMachineOpen(machine.name)}
                 style={{
@@ -230,7 +237,14 @@ const LaundryBookingPage = ({
                     const machineId = machine._id.toString();
                     const slotStartUtc = startUtcFromSlot(slot).toISO();
 
-                    const isBooked = userBookings.some(
+                    const isTaken = allBookings.some(
+                      (b) =>
+                        getBookingMachineId(b) === machineId &&
+                        isSameUtcHour(b.start, slotStartUtc) &&
+                        b.status === 'booked'
+                    );
+
+                    const isMine = userBookings.some(
                       (b) =>
                         getBookingMachineId(b) === machineId &&
                         isSameUtcHour(b.start, slotStartUtc) &&
@@ -241,15 +255,22 @@ const LaundryBookingPage = ({
                       <div key={slotId} className="time-slot-item">
                         <span className="time-slot-label">{slot}</span>
                         <button
-                          onClick={() => toggleBooking(slotId, machine.name, machine.type)}
-                          className={`time-slot-button ${isBooked ? 'unbook' : 'book'}`}
-                          disabled={loading}
+                          onClick={() => (isMine ? toggleBooking(slotId, machine.name, machine.type) : !isTaken && toggleBooking(slotId, machine.name, machine.type))}
+                          className={`time-slot-button ${isMine ? 'unbook' : 'book'}`}
+                          disabled={loading || (!isMine && isTaken)}
                           style={{
                             opacity: loading ? 0.6 : 1,
-                            cursor: loading ? 'not-allowed' : 'pointer'
+                            cursor: loading || (!isMine && isTaken) ? 'not-allowed' : 'pointer',
+                            backgroundColor: isMine
+                              ? '#e74c3c'
+                              : isTaken
+                              ? '#bdc3c7'
+                              : '#2ecc71',
+                            color: isTaken && !isMine ? '#7f8c8d' : 'white',
+                            fontWeight: 'bold'
                           }}
                         >
-                          {isBooked ? 'Unbook' : 'Book'}
+                          {isMine ? 'Unbook' : isTaken ? 'Taken' : 'Book'}
                         </button>
                       </div>
                     );

@@ -59,7 +59,7 @@ const HomePage = ({
     return () => clearInterval(timer);
   }, []);
 
-  // === FETCH MACHINES & BOOKINGS ===
+  // === FETCH MACHINES & BOOKINGS (ONLY MY BOOKINGS) ===
   const fetchBookedLaundry = useCallback(async (retries = 3) => {
     try {
       setLoading(true);
@@ -79,13 +79,16 @@ const HomePage = ({
       const bookings = await getBookings();
       console.log('Fetched bookings for Home:', bookings);
 
+      const userId = localStorage.getItem('userId'); // must be stored on login
+
+      // 3️⃣ Filter only my active bookings
       const formatted = (bookings || [])
         .filter((b) => b.status === 'booked')
+        .filter((b) => b.user?._id === userId || b.userId === userId)
         .map((b, index) => {
           const start = DateTime.fromISO(b.start, { zone: 'utc' });
           const end = DateTime.fromISO(b.end, { zone: 'utc' });
 
-          // If populated, take directly; else match from machine list
           let machineName = 'Unknown Machine';
           let machineType = 'machine';
           const m = b.machine;
@@ -155,19 +158,23 @@ const HomePage = ({
 
         {/* === BOOKED LAUNDRY BOX === */}
         <div className="booked-laundry-box bg-white rounded-xl shadow-lg p-5 w-full max-w-md mb-6">
-          <h2 className="text-lg font-bold mb-3 border-b-2 border-blue-500 pb-1">Booked Laundry</h2>
+          <h2 className="text-lg font-bold mb-3 border-b-2 border-blue-500 pb-1">
+            Your Booked Laundry
+          </h2>
 
           {loading && <p className="text-center text-gray-500">Loading your bookings...</p>}
           {error && <p className="text-center text-red-500">{error}</p>}
 
           {!loading && !error && bookedLaundry.length === 0 ? (
-            <p className="text-gray-500">No bookings this week.</p>
+            <p className="text-gray-500">No bookings yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300 text-sm text-left">
                 <thead className="bg-gray-200">
                   <tr>
-                    <th className="border border-gray-300 px-6 py-2 min-w-[150px]">Date & Machine</th>
+                    <th className="border border-gray-300 px-6 py-2 min-w-[150px]">
+                      Date & Machine
+                    </th>
                     <th className="border border-gray-300 px-6 py-2 min-w-[120px]">Time</th>
                   </tr>
                 </thead>
@@ -175,7 +182,7 @@ const HomePage = ({
                   {bookedLaundry.map((b, i) => (
                     <tr key={b._id || i} className="bg-blue-50">
                       <td className="border border-gray-300 px-6 py-2">
-                        {b.shortMonth} {b.dayNum}  {b.machineName}    ({b.machineType})
+                        {b.shortMonth} {b.dayNum} — {b.machineName} ({b.machineType})
                       </td>
                       <td className="border border-gray-300 px-6 py-2 font-mono">{b.time}</td>
                     </tr>
