@@ -1,9 +1,8 @@
-// src/api.js
 import axios from "axios";
 
-// =============================
-// 🔧 API Configuration
-// =============================
+/* ===========================================
+   🔧 API Configuration
+   =========================================== */
 const API = axios.create({
   baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api/v1",
   headers: { "Content-Type": "application/json" },
@@ -11,18 +10,15 @@ const API = axios.create({
   withCredentials: true,
 });
 
-// =============================
-// 🛡️ Auth Interceptors
-// =============================
+/* ===========================================
+   🛡️ Interceptors — Attach Token + Handle Auth Errors
+   =========================================== */
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
     if (token) config.headers.Authorization = `Bearer ${token}`;
-
     console.log(
-      "Request:",
-      config.method?.toUpperCase(),
-      config.baseURL + config.url,
+      `➡️ ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`,
       config.data ? JSON.stringify(config.data) : ""
     );
     return config;
@@ -33,43 +29,40 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message =
-      error.response?.data?.message?.toLowerCase() || "";
-
-    if (error.response?.status === 401 && message.includes("invalid token")) {
-      console.warn("Invalid or expired token. Logging out...");
+    const message = error.response?.data?.message?.toLowerCase() || "";
+    if (error.response?.status === 401 && message.includes("invalid")) {
+      console.warn("⚠️ Invalid or expired token — logging out...");
       localStorage.clear();
       window.location.href = "/login";
     }
-
     return Promise.reject(error);
   }
 );
 
-// =============================
-// ⚙️ Error Handler
-// =============================
+/* ===========================================
+   ⚙️ Global Error Handler
+   =========================================== */
 const handleError = (err, defaultMessage) => {
   const message =
     err.response?.data?.message ||
     err.response?.data?.error ||
     err.message ||
     defaultMessage ||
-    "An unknown error occurred";
+    "An unknown error occurred.";
 
-  console.error(`${defaultMessage}:`, message);
+  console.error(`❌ ${defaultMessage}:`, message);
   throw new Error(message);
 };
 
-// =============================
-// 👤 User Authentication
-// =============================
+/* ===========================================
+   👤 AUTHENTICATION
+   =========================================== */
 export const loginUser = async (email, password) => {
   try {
     const { data } = await API.post("/user/login", { email, password });
-    const token = data?.data?.accessToken || data?.token || null;
+    const token = data?.data?.accessToken || data?.token;
     const role = data?.data?.user?.role || data?.role || "user";
-    const userId = data?.data?.user?._id || data?.userId || null;
+    const userId = data?.data?.user?._id || data?.userId;
 
     if (token) localStorage.setItem("token", token);
     if (role) localStorage.setItem("role", role);
@@ -102,25 +95,49 @@ export const logoutUser = async () => {
     return { success: true };
   } catch (err) {
     localStorage.clear();
-    throw handleError(err, "Logout failed (forced)");
+    throw handleError(err, "Logout failed");
   }
 };
 
-// =============================
-// 🧺 Bookings
-// =============================
+/* ===========================================
+   ⚖️ GDPR — Account Deletion Request
+   =========================================== */
+export const requestAccountDeletion = async () => {
+  try {
+    const response = await API.post("/user/request-deletion");
+    console.log("🧾 GDPR: Account deletion request submitted:", response.data);
+    return response;
+  } catch (err) {
+    const status = err.response?.status;
+    const msg = err.response?.data?.message || "";
+
+    // Handle duplicate or already-requested deletions gracefully
+    if (status === 400 || status === 409 || msg.includes("already requested")) {
+      console.warn("⚠️ Account deletion already requested.");
+      return { status: 409, message: "You have already requested account deletion." };
+    }
+
+    throw handleError(
+      err,
+      "Failed to request account deletion. Please try again later."
+    );
+  }
+};
+
+/* ===========================================
+   🧺 BOOKINGS
+   =========================================== */
 export const getBookings = async () => {
   try {
     const { data } = await API.get("/booking");
     const bookings = data?.data || data || [];
-    console.log("Fetched bookings:", bookings);
+    console.log("📅 Bookings fetched:", bookings);
     return Array.isArray(bookings) ? bookings : [];
   } catch (err) {
     throw handleError(err, "Failed to fetch bookings");
   }
 };
 
-// ➕ Create booking (independent washer/dryer)
 export const createBooking = async (booking) => {
   try {
     const { data } = await API.post("/booking", booking);
@@ -130,7 +147,6 @@ export const createBooking = async (booking) => {
   }
 };
 
-// ❌ Cancel booking (user)
 export const cancelBooking = async (id) => {
   try {
     const { data } = await API.delete(`/booking/${id}`);
@@ -140,19 +156,20 @@ export const cancelBooking = async (id) => {
   }
 };
 
-// 🗓️ Admin: get all bookings
+/* ===========================================
+   🧾 ADMIN BOOKING MANAGEMENT
+   =========================================== */
 export const adminGetAllBookings = async () => {
   try {
     const { data } = await API.get("/booking/admin/all");
     const bookings = data?.data || data || [];
-    console.log("Admin: Fetched all bookings:", bookings);
+    console.log("🧾 Admin: all bookings:", bookings);
     return Array.isArray(bookings) ? bookings : [];
   } catch (err) {
     throw handleError(err, "Failed to fetch all bookings (admin)");
   }
 };
 
-// 🛑 Admin: cancel any booking
 export const adminCancelAnyBooking = async (id) => {
   try {
     const { data } = await API.delete(`/booking/admin/cancel/${id}`);
@@ -162,28 +179,28 @@ export const adminCancelAnyBooking = async (id) => {
   }
 };
 
-// =============================
-// 🧾 Machines
-// =============================
+/* ===========================================
+   🧠 MACHINES
+   =========================================== */
 export const getMachines = async () => {
   try {
     const { data } = await API.get("/machines");
     const machines = data?.data || data || [];
-    console.log("Fetched machines:", machines);
+    console.log("⚙️ Machines fetched:", machines);
     return Array.isArray(machines) ? machines : [];
   } catch (err) {
     throw handleError(err, "Failed to fetch machines");
   }
 };
 
-// =============================
-// 👥 Users (Admin)
-// =============================
+/* ===========================================
+   👥 ADMIN USER MANAGEMENT
+   =========================================== */
 export const getAllUsers = async () => {
   try {
     const { data } = await API.get("/admin/users");
     const users = data?.data || data || [];
-    console.log("Fetched all users:", users);
+    console.log("👥 Admin: users fetched:", users);
     return Array.isArray(users) ? users : [];
   } catch (err) {
     throw handleError(err, "Failed to fetch users");

@@ -1,16 +1,14 @@
-// src/components/HomePage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import CalendarGrid from './CalendarGrid';
-import CalendarHeader from './CalendarHeader';
-import { getBookings, getMachines } from '../api';
-import { DateTime } from 'luxon';
-import logo from '../assets/Sevas.png';
-import '../App.css';
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import CalendarGrid from "./CalendarGrid";
+import CalendarHeader from "./CalendarHeader";
+import { getBookings, getMachines, requestAccountDeletion } from "../api";
+import { DateTime } from "luxon";
+import logo from "../assets/Sevas.png";
+import "../App.css";
 
-const HELSINKI_TZ = 'Europe/Helsinki';
+const HELSINKI_TZ = "Europe/Helsinki";
 
-// === ERROR BOUNDARY ===
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
   static getDerivedStateFromError(error) {
@@ -18,9 +16,9 @@ class ErrorBoundary extends React.Component {
   }
   render() {
     if (this.state.hasError) {
-      console.error('HomePage Error:', this.state.error);
+      console.error("HomePage Error:", this.state.error);
       return (
-        <div style={{ textAlign: 'center', margin: '20px' }}>
+        <div style={{ textAlign: "center", margin: "20px" }}>
           <h2>Error rendering component. Please check the console or try logging out.</h2>
         </div>
       );
@@ -29,7 +27,6 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// === HELPER FUNCTIONS ===
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
@@ -52,63 +49,48 @@ const HomePage = ({
   const [bookedLaundry, setBookedLaundry] = useState([]);
   const [, setMachines] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [requestingDelete, setRequestingDelete] = useState(false);
 
-  // === LIVE CLOCK ===
   useEffect(() => {
     const timer = setInterval(() => setCurrentDate(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // === FETCH MACHINES & BOOKINGS (ONLY MY UPCOMING BOOKINGS) ===
   const fetchBookedLaundry = useCallback(async (retries = 3) => {
     try {
       setLoading(true);
-      setError('');
-      // 1️⃣ Get all machines (to resolve IDs -> names)
+      setError("");
       const machineResponse = await getMachines();
       const allMachines = (machineResponse?.data || machineResponse || []).map((m) => ({
         ...m,
         _id: m._id || m.id,
-        name: m.name || m.code || 'Unnamed Machine',
-        type: m.type || 'unknown',
+        name: m.name || m.code || "Unnamed Machine",
+        type: m.type || "unknown",
       }));
       setMachines(allMachines);
 
-      // 2️⃣ Fetch bookings
       const bookings = await getBookings();
-      console.log('Fetched bookings for Home:', bookings);
-      const userId = localStorage.getItem('userId'); // Must be stored on login
+      const userId = localStorage.getItem("userId");
       const now = DateTime.now().setZone(HELSINKI_TZ);
 
-      // 3️⃣ Filter only my active, upcoming bookings
       const formatted = (bookings || [])
-        .filter((b) => b.status === 'booked')
-        .filter((b) => (b.user?._id === userId || b.userId === userId))
-        .filter((b) => DateTime.fromISO(b.end, { zone: 'utc' }).setZone(HELSINKI_TZ) > now)
+        .filter((b) => b.status === "booked")
+        .filter((b) => b.user?._id === userId || b.userId === userId)
+        .filter((b) => DateTime.fromISO(b.end, { zone: "utc" }).setZone(HELSINKI_TZ) > now)
         .map((b, index) => {
-          const start = DateTime.fromISO(b.start, { zone: 'utc' }).setZone(HELSINKI_TZ);
-          const end = DateTime.fromISO(b.end, { zone: 'utc' }).setZone(HELSINKI_TZ);
-          let machineName = 'Unknown Machine';
-          let machineType = 'machine';
-          const m = b.machine;
-          if (typeof m === 'object' && m !== null) {
-            machineName = m.name || m.code || 'Unknown Machine';
-            machineType = m.type || 'machine';
-          } else if (typeof m === 'string') {
-            const found = allMachines.find((x) => x._id?.toString() === m.toString());
-            if (found) {
-              machineName = found.name;
-              machineType = found.type;
-            }
-          }
+          const start = DateTime.fromISO(b.start, { zone: "utc" }).setZone(HELSINKI_TZ);
+          const end = DateTime.fromISO(b.end, { zone: "utc" }).setZone(HELSINKI_TZ);
+          const m = b.machine || {};
+          const machineName = m.name || m.code || "Unknown Machine";
+          const machineType = m.type || "machine";
           return {
             ...b,
             _id: b._id || `temp-${index}`,
-            date: start.toFormat('yyyy-MM-dd'),
-            shortMonth: start.toFormat('LLL'),
-            dayNum: start.toFormat('dd'),
-            time: `${start.toFormat('HH:mm')} - ${end.toFormat('HH:mm')}`,
+            date: start.toFormat("yyyy-MM-dd"),
+            shortMonth: start.toFormat("LLL"),
+            dayNum: start.toFormat("dd"),
+            time: `${start.toFormat("HH:mm")} - ${end.toFormat("HH:mm")}`,
             machineName,
             machineType,
           };
@@ -118,12 +100,11 @@ const HomePage = ({
       setBookedLaundry(formatted);
     } catch (err) {
       if (retries > 0) {
-        console.warn(`Retrying fetch bookings (${retries} attempts left)...`);
         await new Promise((resolve) => setTimeout(resolve, 1000));
         return fetchBookedLaundry(retries - 1);
       }
-      console.error('Failed to load bookings:', err);
-      setError('Failed to load your bookings. Please try again.');
+      console.error("Failed to load bookings:", err);
+      setError("Failed to load your bookings. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -133,7 +114,31 @@ const HomePage = ({
     fetchBookedLaundry();
   }, [fetchBookedLaundry]);
 
-  // === CALENDAR SETUP ===
+  const handleDeleteRequest = async () => {
+    const confirm = window.confirm(
+      "Are you sure you want to request account deletion?\nYour request will be sent to the admin for review under GDPR."
+    );
+    if (!confirm) return;
+
+    try {
+      setRequestingDelete(true);
+      const response = await requestAccountDeletion();
+
+      if (response?.status === 200) {
+        alert("✅ Your account deletion request has been sent to the admin.");
+      } else if (response?.status === 409) {
+        alert("⚠️ You have already requested account deletion. Please wait for admin approval.");
+      } else {
+        alert("✅ Request submitted successfully.");
+      }
+    } catch (err) {
+      console.error("Deletion request failed:", err);
+      alert(err.message || "❌ Failed to request account deletion. Please try again later.");
+    } finally {
+      setRequestingDelete(false);
+    }
+  };
+
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
   const calendarCells = [
@@ -144,40 +149,40 @@ const HomePage = ({
   return (
     <ErrorBoundary>
       <div className="container flex flex-col items-center m-4">
-        {/* === LOGO + DATE/TIME === */}
-        <div className="landing-center mb-4 text-center">
-          <img src={logo} alt="Sevas Laundry Logo" className="landing-logo mb-2 w-24" />
-          <h1 className="app-title mb-1 text-2xl font-bold">Sevas Laundry Booking</h1>
-          <p className="current-date-time text-gray-700">
-            <span className="date font-medium">{currentDate.toLocaleDateString()}</span>
+        {/* Header */}
+        <div className="landing-center mb-6 text-center">
+          <img src={logo} alt="Sevas Laundry Logo" className="landing-logo mb-2 w-28" />
+          <h1 className="app-title mb-1 text-3xl font-bold text-blue-700">
+            Sevas Laundry Booking
+          </h1>
+          <p className="current-date-time text-gray-700 mt-2">
+            <span className="date font-medium text-lg">{currentDate.toLocaleDateString()}</span>
             <br />
-            <span className="time font-mono text-lg">{currentDate.toLocaleTimeString()}</span>
+            <span className="time font-mono text-xl">{currentDate.toLocaleTimeString()}</span>
           </p>
         </div>
 
-        {/* === BOOKED LAUNDRY BOX === */}
-        <div className="booked-laundry-box bg-white rounded-xl shadow-lg p-5 w-full max-w-md mb-6">
-          <h2 className="text-lg font-bold mb-3 border-b-2 border-blue-500 pb-1">
+        {/* Bookings */}
+        <div className="booked-laundry-box bg-white rounded-2xl shadow-lg p-6 w-full max-w-md mb-10">
+          <h2 className="text-lg font-bold mb-3 border-b-2 border-blue-500 pb-1 text-center">
             Your Upcoming Bookings
           </h2>
           {loading && <p className="text-center text-gray-500">Loading your bookings...</p>}
           {error && <p className="text-center text-red-500">{error}</p>}
           {!loading && !error && bookedLaundry.length === 0 ? (
-            <p className="text-gray-500">No upcoming bookings.</p>
+            <p className="text-gray-500 text-center">No upcoming bookings.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300 text-sm text-left">
-                <thead className="bg-gray-200">
+                <thead className="bg-gray-100">
                   <tr>
-                    <th className="border border-gray-300 px-6 py-2 min-w-[150px]">
-                      Date & Machine
-                    </th>
-                    <th className="border border-gray-300 px-6 py-2 min-w-[120px]">Time</th>
+                    <th className="border border-gray-300 px-6 py-2 text-gray-700">Date & Machine</th>
+                    <th className="border border-gray-300 px-6 py-2 text-gray-700">Time</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bookedLaundry.map((b, i) => (
-                    <tr key={b._id || i} className="bg-blue-50">
+                    <tr key={b._id || i} className="bg-blue-50 hover:bg-blue-100 transition-colors">
                       <td className="border border-gray-300 px-6 py-2">
                         {b.shortMonth} {b.dayNum} — {b.machineName} ({b.machineType})
                       </td>
@@ -190,41 +195,7 @@ const HomePage = ({
           )}
         </div>
 
-        {/* === ACTION BUTTONS === */}
-        <div className="home-laundry-buttons flex gap-3 mb-6">
-          <button
-            className="home-button px-5 py-2 bg-gray-200 rounded hover:bg-gray-300"
-            onClick={() => navigate('/')}
-          >
-            Home
-          </button>
-          <button
-            className="book-laundry-button px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            onClick={() =>
-              navigate('/laundry', {
-                state: {
-                  selectedDay: {
-                    dayName: DateTime.now().toFormat('cccc'),
-                    date: new Date(),
-                  },
-                },
-              })
-            }
-          >
-            Book Laundry
-          </button>
-          <button
-            className="bg-red-600 text-white px-5 py-2 rounded hover:bg-red-700"
-            onClick={() => {
-              if (typeof handleLogout === 'function') handleLogout();
-              else navigate('/login', { replace: true });
-            }}
-          >
-            Logout
-          </button>
-        </div>
-
-        {/* === CALENDAR HEADER === */}
+        {/* Calendar */}
         {months.length > 0 && handleMonthChange && (
           <CalendarHeader
             currentMonth={currentMonth}
@@ -233,8 +204,6 @@ const HomePage = ({
             onChange={handleMonthChange}
           />
         )}
-
-        {/* === CALENDAR GRID === */}
         {weekdays.length > 0 && handleDayClick && (
           <CalendarGrid
             weekdays={weekdays}
@@ -246,6 +215,31 @@ const HomePage = ({
             onDayClick={(day) => handleDayClick(day)}
           />
         )}
+
+        {/* Separated Buttons Section */}
+        <div className="flex flex-col items-center mt-16 w-full max-w-lg gap-10">
+          {/* Logout Button */}
+          <button
+            onClick={() => {
+              if (typeof handleLogout === "function") handleLogout();
+              else navigate("/login", { replace: true });
+            }}
+            className="logout-button w-2/3 sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold px-10 py-4 rounded-2xl shadow-lg transition-all transform hover:scale-105"
+          >
+            Logout
+          </button>
+
+          {/* Request Account Deletion Button */}
+          <button
+            onClick={handleDeleteRequest}
+            disabled={requestingDelete}
+            className={`delete-request-button w-2/3 sm:w-auto ${
+              requestingDelete ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+            } text-white text-lg font-semibold px-10 py-4 rounded-2xl shadow-lg transition-all transform hover:scale-105 disabled:opacity-50`}
+          >
+            {requestingDelete ? "Requesting..." : "Request Account Deletion"}
+          </button>
+        </div>
       </div>
     </ErrorBoundary>
   );
