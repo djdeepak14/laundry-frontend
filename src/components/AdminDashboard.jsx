@@ -108,7 +108,7 @@ const AdminDashboard = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) return <div className="p-8 text-center text-gray-600">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
   // Filters
@@ -129,12 +129,12 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 font-sans">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-          <div className="flex gap-3">
+        <div className="admin-header">
+          <h1>Admin Dashboard</h1>
+          <div className="action-buttons">
             <button
               onClick={() => window.location.reload()}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg"
+              className="refresh-button"
             >
               Refresh
             </button>
@@ -143,7 +143,7 @@ const AdminDashboard = () => {
                 localStorage.clear();
                 navigate("/login", { replace: true });
               }}
-              className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg"
+              className="logout-button"
             >
               Logout
             </button>
@@ -156,18 +156,14 @@ const AdminDashboard = () => {
             placeholder={`Search ${activeTab}`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="search-input"
           />
-          <div className="flex gap-2">
+          <div className="tab-buttons">
             {["users", "bookings", "deletion"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 rounded-lg capitalize ${
-                  activeTab === tab
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-800"
-                }`}
+                className={`tab-button ${activeTab === tab ? "active" : ""}`}
               >
                 {tab === "deletion" ? "Deletion Requests" : tab}
               </button>
@@ -179,12 +175,12 @@ const AdminDashboard = () => {
         {activeTab === "users" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg">
             <table className="min-w-full">
-              <thead className="bg-gray-200">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left">Name</th>
-                  <th className="px-6 py-3 text-left">Email</th>
-                  <th className="px-6 py-3 text-center">Role</th>
-                  <th className="px-6 py-3 text-center">Approval</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th className="text-center">Role</th>
+                  <th className="text-center">Approval</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -195,11 +191,11 @@ const AdminDashboard = () => {
                     <td className="px-6 py-4 text-center">{u.role}</td>
                     <td className="px-6 py-4 text-center">
                       {u.isApproved ? (
-                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Approved</span>
+                        <span className="status-badge bg-green-100 text-green-800">Approved</span>
                       ) : (
                         <button
                           onClick={() => handleApprove(u._id)}
-                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded-lg text-xs"
+                          className="approve-button"
                         >
                           Approve
                         </button>
@@ -216,13 +212,13 @@ const AdminDashboard = () => {
         {activeTab === "bookings" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6">
             <table className="min-w-full">
-              <thead className="bg-gray-200">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left">User</th>
-                  <th className="px-6 py-3 text-left">Machine</th>
-                  <th className="px-6 py-3 text-left">Date</th>
-                  <th className="px-6 py-3 text-left">Time</th>
-                  <th className="px-6 py-3 text-center">Actions</th>
+                  <th>User</th>
+                  <th>Machine</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th className="text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -235,7 +231,7 @@ const AdminDashboard = () => {
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => handleCancelBooking(b._id)}
-                        className="px-4 py-2 rounded-lg text-sm text-white bg-orange-500 hover:bg-orange-600"
+                        className="unbook-button"
                       >
                         Unbook
                       </button>
@@ -251,12 +247,12 @@ const AdminDashboard = () => {
         {activeTab === "deletion" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6">
             <table className="min-w-full">
-              <thead className="bg-gray-200">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left">Name</th>
-                  <th className="px-6 py-3 text-left">Email</th>
-                  <th className="px-6 py-3 text-left">Requested At</th>
-                  <th className="px-6 py-3 text-center">Actions</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Requested At</th>
+                  <th className="text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -273,7 +269,7 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => handleApproveDeletion(u._id)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+                          className="delete-request-button"
                         >
                           Approve Deletion
                         </button>

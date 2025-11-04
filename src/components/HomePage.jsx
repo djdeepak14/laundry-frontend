@@ -217,25 +217,20 @@ const HomePage = ({
         )}
 
         {/* Separated Buttons Section */}
-        <div className="flex flex-col items-center mt-16 w-full max-w-lg gap-10">
-          {/* Logout Button */}
+        <div className="home-action-buttons">
           <button
             onClick={() => {
               if (typeof handleLogout === "function") handleLogout();
               else navigate("/login", { replace: true });
             }}
-            className="logout-button w-2/3 sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold px-10 py-4 rounded-2xl shadow-lg transition-all transform hover:scale-105"
+            className="logout-button"
           >
             Logout
           </button>
-
-          {/* Request Account Deletion Button */}
           <button
             onClick={handleDeleteRequest}
             disabled={requestingDelete}
-            className={`delete-request-button w-2/3 sm:w-auto ${
-              requestingDelete ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
-            } text-white text-lg font-semibold px-10 py-4 rounded-2xl shadow-lg transition-all transform hover:scale-105 disabled:opacity-50`}
+            className="delete-request-button"
           >
             {requestingDelete ? "Requesting..." : "Request Account Deletion"}
           </button>
