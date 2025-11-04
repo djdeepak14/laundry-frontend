@@ -58,7 +58,7 @@ const LaundryBookingPage = ({
       const bookings = await getBookings();
       const validBookings = Array.isArray(bookings) ? bookings : [];
       setAllBookings(validBookings);
-      const userId = localStorage.getItem('userId'); // Store this on login
+      const userId = localStorage.getItem('userId');
       const myBookings = validBookings.filter(
         (b) => (b.user?._id === userId || b.userId === userId) && b.status === 'booked'
       );
@@ -200,7 +200,6 @@ const LaundryBookingPage = ({
         ) : (
           machines.map((machine) => (
             <div key={machine._id} className="machine-schedule">
-              {/* Machine title */}
               <h3
                 onClick={() => toggleMachineOpen(machine.name)}
                 style={{
@@ -221,7 +220,6 @@ const LaundryBookingPage = ({
                   ({machine.type})
                 </span>
               </h3>
-              {/* Time slots */}
               {openMachines[machine.name] && (
                 <div className="time-slots-grid">
                   {timeSlots.map((slot) => {
@@ -247,17 +245,6 @@ const LaundryBookingPage = ({
                           onClick={() => (!isTaken || isMine) && toggleBooking(slotId, machine.name, machine.type)}
                           className={`time-slot-button ${isMine ? 'unbook' : isTaken ? 'taken' : 'book'}`}
                           disabled={loading || (isTaken && !isMine)}
-                          style={{
-                            opacity: loading ? 0.6 : 1,
-                            cursor: loading || (isTaken && !isMine) ? 'not-allowed' : 'pointer',
-                            backgroundColor: isMine
-                              ? '#e74c3c'
-                              : isTaken
-                              ? '#bdc3c7'
-                              : '#2ecc71',
-                            color: isTaken && !isMine ? '#7f8c8d' : 'white',
-                            fontWeight: 'bold',
-                          }}
                         >
                           {isMine ? 'Unbook' : isTaken ? 'Taken' : 'Book'}
                         </button>
@@ -270,7 +257,6 @@ const LaundryBookingPage = ({
           ))
         )}
       </div>
-      {/* User bookings list */}
       <div className="booked-list">
         <h2 style={{ marginTop: '32px', borderBottom: '2px solid #3498db', paddingBottom: '8px' }}>
           Your Upcoming Bookings
@@ -290,6 +276,7 @@ const LaundryBookingPage = ({
                 return (
                   <li
                     key={booking._id}
+                    className="booked-list-item"
                     style={{
                       marginBottom: '16px',
                       padding: '12px',
@@ -314,18 +301,7 @@ const LaundryBookingPage = ({
                     <button
                       onClick={() => handleCancel(booking._id)}
                       disabled={loading}
-                      style={{
-                        backgroundColor: loading ? '#95a5a6' : '#e74c3c',
-                        color: 'white',
-                        padding: '8px 16px',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontWeight: 'bold',
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseOver={(e) => !loading && (e.target.style.backgroundColor = '#c0392b')}
-                      onMouseOut={(e) => !loading && (e.target.style.backgroundColor = '#e74c3c')}
+                      className="cancel-button"
                     >
                       {loading ? 'Canceling...' : 'Cancel'}
                     </button>

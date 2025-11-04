@@ -1,4 +1,6 @@
-/* Reset and Base Styles */
+/* -----------------------------------
+   RESET & BASE STYLES
+----------------------------------- */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -13,7 +15,9 @@ body {
   min-height: 100vh;
 }
 
-/* Container */
+/* -----------------------------------
+   CONTAINER
+----------------------------------- */
 .container {
   max-width: 1280px;
   margin: 0 auto;
@@ -24,7 +28,9 @@ body {
   background-color: #f9fafb;
 }
 
-/* Landing Center (Logo + Title + Date/Time) */
+/* -----------------------------------
+   LANDING PAGE (Logo, Title, Date/Time)
+----------------------------------- */
 .landing-center {
   text-align: center;
   margin-bottom: 2.5rem;
@@ -59,9 +65,9 @@ body {
   color: #4b5563;
 }
 
-/* ================================
-   UNIVERSAL BUTTON STYLING
-   ================================ */
+/* -----------------------------------
+   UNIVERSAL BUTTON STYLES
+----------------------------------- */
 button {
   border: none;
   cursor: pointer;
@@ -94,7 +100,7 @@ button:disabled {
   background: linear-gradient(135deg, #6b7280, #4b5563);
 }
 
-/* Specific Button Variants */
+/* Button Variants */
 .refresh-button {
   background: linear-gradient(135deg, #10b981, #047857);
 }
@@ -105,17 +111,57 @@ button:disabled {
 
 .logout-button,
 .delete-request-button,
-.unbook-button {
+.unbook-button,
+.cancel-button {
   background: linear-gradient(135deg, #ef4444, #b91c1c);
 }
 
 .logout-button:hover,
 .delete-request-button:hover,
-.unbook-button:hover {
+.unbook-button:hover,
+.cancel-button:hover {
   background: linear-gradient(135deg, #dc2626, #991b1b);
 }
 
-/* Homepage Buttons Container */
+.approve-button {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.approve-button:hover {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.time-slot-button.book {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.time-slot-button.book:hover {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.time-slot-button.unbook {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+
+.time-slot-button.unbook:hover {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+}
+
+.time-slot-button.taken {
+  background: linear-gradient(135deg, #d1d5db, #9ca3af);
+  color: #4b5563;
+  cursor: not-allowed;
+}
+
+.time-slot-button.taken:hover {
+  background: linear-gradient(135deg, #d1d5db, #9ca3af);
+  transform: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* -----------------------------------
+   HOMEPAGE BUTTONS
+----------------------------------- */
 .home-action-buttons {
   display: flex;
   justify-content: space-between;
@@ -134,7 +180,9 @@ button:disabled {
   border-radius: 12px;
 }
 
-/* Admin Dashboard Header */
+/* -----------------------------------
+   ADMIN DASHBOARD HEADER
+----------------------------------- */
 .admin-header {
   display: flex;
   justify-content: space-between;
@@ -153,7 +201,9 @@ button:disabled {
   gap: 1.25rem;
 }
 
-/* Tab Buttons */
+/* -----------------------------------
+   TABS
+----------------------------------- */
 .tab-buttons {
   display: flex;
   gap: 0.75rem;
@@ -166,6 +216,7 @@ button:disabled {
   padding: 0.9rem 1.75rem;
   border-radius: 10px;
   font-weight: 500;
+  transition: all 0.3s ease;
 }
 
 .tab-button.active {
@@ -181,7 +232,9 @@ button:disabled {
   background: linear-gradient(135deg, #2563eb, #1e3a8a);
 }
 
-/* Search Input */
+/* -----------------------------------
+   SEARCH INPUT
+----------------------------------- */
 .search-input {
   flex: 1;
   padding: 0.9rem 1.25rem;
@@ -197,7 +250,9 @@ button:disabled {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-/* Calendar Header */
+/* -----------------------------------
+   CALENDAR HEADER
+----------------------------------- */
 .calendar-header-container {
   display: flex;
   justify-content: center;
@@ -225,7 +280,9 @@ button:disabled {
   background: linear-gradient(135deg, #2563eb, #1e3a8a);
 }
 
-/* Calendar Grid */
+/* -----------------------------------
+   CALENDAR GRID
+----------------------------------- */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -270,7 +327,9 @@ button:disabled {
   color: #ffffff;
 }
 
-/* Machine Schedules */
+/* -----------------------------------
+   MACHINE SCHEDULES
+----------------------------------- */
 .machine-schedule {
   margin-bottom: 1.5rem;
 }
@@ -282,7 +341,9 @@ button:disabled {
   font-weight: 600;
 }
 
-/* Time Slots Grid */
+/* -----------------------------------
+   TIME SLOTS
+----------------------------------- */
 .time-slots-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -305,21 +366,9 @@ button:disabled {
   margin-right: 0.75rem;
 }
 
-/* Time Slot Buttons */
-.time-slot-button {
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #3b82f6, #1e40af);
-  color: #ffffff;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.time-slot-button:hover {
-  background: linear-gradient(135deg, #2563eb, #1e3a8a);
-}
-
-/* Booked List */
+/* -----------------------------------
+   BOOKED LIST
+----------------------------------- */
 .booked-list {
   margin-top: 2.5rem;
   background-color: #ffffff;
@@ -350,7 +399,9 @@ button:disabled {
   border-radius: 8px;
 }
 
-/* Booked Laundry Box (Homepage Table) */
+/* -----------------------------------
+   BOOKED LAUNDRY BOX
+----------------------------------- */
 .booked-laundry-box {
   background-color: #ffffff;
   border-radius: 12px;
@@ -379,7 +430,9 @@ button:disabled {
   transition: background-color 0.2s;
 }
 
-/* Admin Dashboard Tables */
+/* -----------------------------------
+   TABLE STYLING (Admin Tables)
+----------------------------------- */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -421,7 +474,9 @@ tr:hover {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-/* Status Badge */
+/* -----------------------------------
+   STATUS BADGE
+----------------------------------- */
 .status-badge {
   padding: 0.3rem 0.9rem;
   border-radius: 9999px;
@@ -429,7 +484,9 @@ tr:hover {
   font-weight: 500;
 }
 
-/* Forms */
+/* -----------------------------------
+   FORMS
+----------------------------------- */
 form {
   display: flex;
   flex-direction: column;
@@ -455,7 +512,9 @@ input:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-/* Login Container */
+/* -----------------------------------
+   LOGIN CONTAINER
+----------------------------------- */
 .login-container {
   max-width: 320px;
   margin: 120px auto;
@@ -469,7 +528,23 @@ input:focus {
   padding: 0.75rem;
 }
 
-/* Responsive */
+/* -----------------------------------
+   HOME HEADER BUTTON
+----------------------------------- */
+.home-header-button {
+  background: linear-gradient(135deg, #3b82f6, #1e40af);
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 8px;
+}
+
+.home-header-button:hover {
+  background: linear-gradient(135deg, #2563eb, #1e3a8a);
+}
+
+/* -----------------------------------
+   RESPONSIVE DESIGN
+----------------------------------- */
 @media (max-width: 640px) {
   .home-action-buttons {
     flex-direction: column;
@@ -541,5 +616,23 @@ input:focus {
   .time-slot-label,
   .time-slot-button {
     font-size: 0.85rem;
+  }
+
+  .booked-list li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .booked-list button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .home-header-button {
+    width: 100%;
+    padding: 0.8rem;
+    font-size: 0.95rem;
   }
 }

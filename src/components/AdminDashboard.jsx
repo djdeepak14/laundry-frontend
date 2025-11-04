@@ -6,6 +6,7 @@ import {
   adminGetAllBookings,
   adminCancelAnyBooking,
   getMachines,
+  toggleUserRole,
 } from "../api";
 import { DateTime } from "luxon";
 import { useNavigate } from "react-router-dom";
@@ -18,8 +19,8 @@ const AdminDashboard = () => {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
+  const currentUserId = localStorage.getItem("userId");
 
-  // Fetch everything
   useEffect(() => {
     const fetchAllData = async () => {
       setLoading(true);
@@ -30,19 +31,16 @@ const AdminDashboard = () => {
           adminGetAllBookings(),
           getMachines(),
         ]);
-
         const usersList = Array.isArray(usersRes) ? usersRes : usersRes.data || [];
         const machinesList = Array.isArray(machinesRes) ? machinesRes : machinesRes.data || [];
         const bookingsList = Array.isArray(bookingsRes) ? bookingsRes : bookingsRes.data || [];
-
-        // Enrich booking data
         const enrichedBookings = bookingsList
           .filter((b) => b.status === "booked")
           .map((b) => {
             const machine = machinesList.find((m) => m._id === b.machine?._id || m._id === b.machineId);
             const user = usersList.find((u) => u._id === b.user?._id || u._id === b.userId);
-            const start = DateTime.fromISO(b.start);
-            const end = DateTime.fromISO(b.end);
+            const start = DateTime.fromISO(b.start).setZone("Europe/Helsinki");
+            const end = DateTime.fromISO(b.end).setZone("Europe/Helsinki");
             return {
               ...b,
               machineName: machine?.name || "Unknown",
@@ -50,13 +48,11 @@ const AdminDashboard = () => {
               userName: user?.name || "Unknown",
               userEmail: user?.email || "unknown@example.com",
               formattedDate: start.isValid ? start.toFormat("MMM dd, yyyy") : "N/A",
-              formattedTime:
-                start.isValid && end.isValid ? `${start.toFormat("HH:mm")} - ${end.toFormat("HH:mm")}` : "N/A",
+              formattedTime: start.isValid && end.isValid ? `${start.toFormat("HH:mm")} - ${end.toFormat("HH:mm")}` : "N/A",
               duration: start.isValid && end.isValid ? end.diff(start, "hours").hours : 0,
             };
           })
           .sort((a, b) => new Date(b.start) - new Date(a.start));
-
         setUsers(usersList);
         setBookings(enrichedBookings);
       } catch (err) {
@@ -66,11 +62,9 @@ const AdminDashboard = () => {
         setLoading(false);
       }
     };
-
     fetchAllData();
   }, []);
 
-  // Approve user
   const handleApprove = async (userId) => {
     if (!window.confirm("Approve this user?")) return;
     try {
@@ -84,7 +78,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Approve deletion (GDPR)
   const handleApproveDeletion = async (userId) => {
     if (!window.confirm("Approve this deletion request and permanently delete this user?")) return;
     try {
@@ -96,7 +89,32 @@ const AdminDashboard = () => {
     }
   };
 
-  // Cancel booking
+  const handleToggleRole = async (userId, currentRole) => {
+    if (!window.confirm(`Change role to ${currentRole === "admin" ? "user" : "admin"}?`)) return;
+    try {
+      await toggleUserRole(userId);
+      setUsers((prev) =>
+        prev.map((u) =>
+          u._id === userId ? { ...u, role: currentRole === "admin" ? "user" : "admin" } : u
+        )
+      );
+      alert(`User role changed to ${currentRole === "admin" ? "user" : "admin"}!`);
+    } catch {
+      alert("Failed to change user role.");
+    }
+  };
+
+  const handleDirectDelete = async (userId) => {
+    if (!window.confirm("Permanently delete this user? This action cannot be undone.")) return;
+    try {
+      await deleteUserById(userId);
+      setUsers((prev) => prev.filter((u) => u._id !== userId));
+      alert("User deleted successfully.");
+    } catch {
+      alert("Failed to delete user.");
+    }
+  };
+
   const handleCancelBooking = async (bookingId) => {
     if (!window.confirm("Cancel this booking?")) return;
     try {
@@ -111,15 +129,12 @@ const AdminDashboard = () => {
   if (loading) return <div className="p-8 text-center text-gray-600">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
-  // Filters
   const filteredUsers = users.filter(
     (u) =>
       u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
   const deletionRequests = users.filter((u) => u.deletionRequested === true);
-
   const filteredBookings = bookings.filter(
     (b) =>
       b.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -149,7 +164,6 @@ const AdminDashboard = () => {
             </button>
           </div>
         </div>
-
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
           <input
             type="text"
@@ -165,13 +179,11 @@ const AdminDashboard = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`tab-button ${activeTab === tab ? "active" : ""}`}
               >
-                {tab === "deletion" ? "Deletion Requests" : tab}
+                {tab === "deletion" ? "Deletion Requests" : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </div>
         </div>
-
-        {/* USERS TAB */}
         {activeTab === "users" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg">
             <table className="min-w-full">
@@ -181,6 +193,8 @@ const AdminDashboard = () => {
                   <th>Email</th>
                   <th className="text-center">Role</th>
                   <th className="text-center">Approval</th>
+                  <th className="text-center">Change Role</th>
+                  <th className="text-center">Delete</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -196,9 +210,69 @@ const AdminDashboard = () => {
                         <button
                           onClick={() => handleApprove(u._id)}
                           className="approve-button"
+                          style={{
+                            backgroundColor: '#2ecc71',
+                            color: 'white',
+                            padding: '6px 12px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseOver={(e) => (e.target.style.backgroundColor = '#27ae60')}
+                          onMouseOut={(e) => (e.target.style.backgroundColor = '#2ecc71')}
                         >
                           Approve
                         </button>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {u._id !== currentUserId ? (
+                        <button
+                          onClick={() => handleToggleRole(u._id, u.role)}
+                          className="change-role-button"
+                          style={{
+                            backgroundColor: '#3498db',
+                            color: 'white',
+                            padding: '6px 12px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseOver={(e) => (e.target.style.backgroundColor = '#2980b9')}
+                          onMouseOut={(e) => (e.target.style.backgroundColor = '#3498db')}
+                        >
+                          {u.role === "admin" ? "Make User" : "Make Admin"}
+                        </button>
+                      ) : (
+                        <span className="text-gray-500">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {u._id !== currentUserId ? (
+                        <button
+                          onClick={() => handleDirectDelete(u._id)}
+                          className="delete-button"
+                          style={{
+                            backgroundColor: '#e74c3c',
+                            color: 'white',
+                            padding: '6px 12px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseOver={(e) => (e.target.style.backgroundColor = '#c0392b')}
+                          onMouseOut={(e) => (e.target.style.backgroundColor = '#e74c3c')}
+                        >
+                          Delete
+                        </button>
+                      ) : (
+                        <span className="text-gray-500">—</span>
                       )}
                     </td>
                   </tr>
@@ -207,8 +281,6 @@ const AdminDashboard = () => {
             </table>
           </div>
         )}
-
-        {/* BOOKINGS TAB */}
         {activeTab === "bookings" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6">
             <table className="min-w-full">
@@ -232,6 +304,18 @@ const AdminDashboard = () => {
                       <button
                         onClick={() => handleCancelBooking(b._id)}
                         className="unbook-button"
+                        style={{
+                          backgroundColor: '#e74c3c',
+                          color: 'white',
+                          padding: '6px 12px',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseOver={(e) => (e.target.style.backgroundColor = '#c0392b')}
+                        onMouseOut={(e) => (e.target.style.backgroundColor = '#e74c3c')}
                       >
                         Unbook
                       </button>
@@ -242,8 +326,6 @@ const AdminDashboard = () => {
             </table>
           </div>
         )}
-
-        {/* DELETION REQUESTS TAB */}
         {activeTab === "deletion" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6">
             <table className="min-w-full">
@@ -263,13 +345,25 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4 font-mono text-sm">{u.email}</td>
                       <td className="px-6 py-4">
                         {u.deletionRequestedAt
-                          ? DateTime.fromISO(u.deletionRequestedAt).toFormat("MMM dd, HH:mm")
+                          ? DateTime.fromISO(u.deletionRequestedAt).setZone("Europe/Helsinki").toFormat("MMM dd, HH:mm")
                           : "—"}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => handleApproveDeletion(u._id)}
                           className="delete-request-button"
+                          style={{
+                            backgroundColor: '#e74c3c',
+                            color: 'white',
+                            padding: '6px 12px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseOver={(e) => (e.target.style.backgroundColor = '#c0392b')}
+                          onMouseOut={(e) => (e.target.style.backgroundColor = '#e74c3c')}
                         >
                           Approve Deletion
                         </button>
@@ -288,7 +382,6 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
-
       <footer className="mt-12 text-center text-gray-500 text-sm">
         Laundry Admin © {new Date().getFullYear()}
       </footer>

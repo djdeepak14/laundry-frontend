@@ -111,7 +111,6 @@ export const requestAccountDeletion = async () => {
     const status = err.response?.status;
     const msg = err.response?.data?.message || "";
 
-    // Handle duplicate or already-requested deletions gracefully
     if (status === 400 || status === 409 || msg.includes("already requested")) {
       console.warn("⚠️ Account deletion already requested.");
       return { status: 409, message: "You have already requested account deletion." };
@@ -222,6 +221,15 @@ export const deleteUserById = async (id) => {
     return data;
   } catch (err) {
     throw handleError(err, "Failed to delete user");
+  }
+};
+
+export const toggleUserRole = async (id) => {
+  try {
+    const { data } = await API.patch(`/user/toggle-role/${id}`);
+    return data;
+  } catch (err) {
+    throw handleError(err, "Failed to toggle user role");
   }
 };
 
