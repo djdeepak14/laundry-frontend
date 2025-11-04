@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import washerImg from "../assets/washer.jpg";
-import { Eye, EyeOff } from "lucide-react"; // 👁️ icons for password toggle
+import { Eye, EyeOff } from "lucide-react"; // 👁️ password toggle icons
 
 const LoginForm = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState("");
@@ -70,8 +70,7 @@ const LoginForm = ({ onLoginSuccess }) => {
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const validateStrongPassword = (password) => {
-    // GDPR-strong password rule:
-    // At least 8 chars, includes uppercase, lowercase, number, and special char
+    // GDPR-strong password rule: uppercase, lowercase, number, special char, min 8 chars
     const regex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     return regex.test(password);
@@ -161,17 +160,19 @@ const LoginForm = ({ onLoginSuccess }) => {
         setError("Login failed: No token received.");
       }
     } catch (err) {
-      if (err.response?.status === 500)
-        setError("Server error: Check backend logs.");
-      else if (err.response?.status === 400)
-        setError(err.response.data.message || "Invalid input.");
-      else if (err.code === "ERR_NETWORK")
+      // ✅ Show backend message if available
+      if (err.response?.status === 400 || err.response?.status === 500) {
+        setError(
+          err.response?.data?.message ||
+            "Server error occurred. Please check backend logs."
+        );
+      } else if (err.code === "ERR_NETWORK") {
         setError("Network error: Server unreachable.");
-      else if (err.response?.status === 0)
-        setError("CORS error: Request blocked.");
-      else if (err.response?.status === 404)
+      } else if (err.response?.status === 404) {
         setError("Endpoint not found.");
-      else setError(err.response?.data?.message || "Request failed.");
+      } else {
+        setError(err.response?.data?.message || "Request failed.");
+      }
     } finally {
       setLoading(false);
     }
@@ -296,7 +297,8 @@ const LoginForm = ({ onLoginSuccess }) => {
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
-              if (isRegistering) setPasswordValid(validateStrongPassword(e.target.value));
+              if (isRegistering)
+                setPasswordValid(validateStrongPassword(e.target.value));
             }}
             style={{
               ...inputStyle,
@@ -308,9 +310,17 @@ const LoginForm = ({ onLoginSuccess }) => {
             autoComplete="current-password"
           />
           {showPassword ? (
-            <EyeOff size={20} style={eyeIconStyle} onClick={() => setShowPassword(false)} />
+            <EyeOff
+              size={20}
+              style={eyeIconStyle}
+              onClick={() => setShowPassword(false)}
+            />
           ) : (
-            <Eye size={20} style={eyeIconStyle} onClick={() => setShowPassword(true)} />
+            <Eye
+              size={20}
+              style={eyeIconStyle}
+              onClick={() => setShowPassword(true)}
+            />
           )}
         </div>
 
