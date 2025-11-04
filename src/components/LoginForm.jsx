@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { jwtDecode } from "jwt-decode"; // ✅ fixed import
+import { jwtDecode } from "jwt-decode";
 import washerImg from "../assets/washer.jpg";
-
+import { Eye, EyeOff } from "lucide-react"; // 👁️ icons for password toggle
 
 const LoginForm = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [wsMessage, setWsMessage] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordValid, setPasswordValid] = useState(true);
 
   const API_BASE_URL =
     process.env.REACT_APP_API_URL || "http://localhost:5000/api/v1";
@@ -66,6 +69,14 @@ const LoginForm = ({ onLoginSuccess }) => {
   /* ✅ VALIDATIONS */
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
+  const validateStrongPassword = (password) => {
+    // GDPR-strong password rule:
+    // At least 8 chars, includes uppercase, lowercase, number, and special char
+    const regex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    return regex.test(password);
+  };
+
   const toggleMode = () => {
     setIsRegistering(!isRegistering);
     setError("");
@@ -75,7 +86,7 @@ const LoginForm = ({ onLoginSuccess }) => {
     setConfirmPassword("");
   };
 
-  /* ✅ HANDLE LOGIN / REGISTER SUBMIT */
+  /* ✅ HANDLE LOGIN / REGISTER */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -86,16 +97,22 @@ const LoginForm = ({ onLoginSuccess }) => {
       setLoading(false);
       return;
     }
+
     if (!validateEmail(email)) {
       setError("Invalid email format.");
       setLoading(false);
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+
+    if (isRegistering && !validateStrongPassword(password)) {
+      setError(
+        "Password must include at least 8 characters, one uppercase, one lowercase, one number, and one special symbol."
+      );
+      setPasswordValid(false);
       setLoading(false);
       return;
     }
+
     if (isRegistering && password !== confirmPassword) {
       setError("Passwords do not match.");
       setLoading(false);
@@ -113,10 +130,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           name: name.trim(),
           confirmPassword: confirmPassword.trim(),
         }
-      : {
-          email: email.trim(),
-          password: password.trim(),
-        };
+      : { email: email.trim(), password: password.trim() };
 
     try {
       const response = await axios.post(url, payload, {
@@ -135,7 +149,6 @@ const LoginForm = ({ onLoginSuccess }) => {
         localStorage.setItem("token", token);
 
         try {
-          // ✅ Decode token to extract role and user ID
           const decoded = jwtDecode(token);
           if (decoded._id) localStorage.setItem("userId", decoded._id);
           if (decoded.role) localStorage.setItem("role", decoded.role);
@@ -183,6 +196,21 @@ const LoginForm = ({ onLoginSuccess }) => {
     width: "400px",
     maxWidth: "95%",
     textAlign: "center",
+    position: "relative",
+  };
+
+  const inputContainer = {
+    position: "relative",
+    width: "100%",
+  };
+
+  const eyeIconStyle = {
+    position: "absolute",
+    right: "10px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    cursor: "pointer",
+    color: "#555",
   };
 
   const inputStyle = {
@@ -239,7 +267,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         {isRegistering && (
           <input
             type="text"
-            placeholder="Name"
+            placeholder="Full Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={inputStyle}
@@ -260,28 +288,68 @@ const LoginForm = ({ onLoginSuccess }) => {
           autoComplete="email"
         />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={inputStyle}
-          required
-          disabled={loading}
-          autoComplete="current-password"
-        />
-
-        {isRegistering && (
+        {/* ✅ Password field with eye toggle */}
+        <div style={inputContainer}>
           <input
-            type="password"
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            style={inputStyle}
+            type={showPassword ? "text" : "password"}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (isRegistering) setPasswordValid(validateStrongPassword(e.target.value));
+            }}
+            style={{
+              ...inputStyle,
+              borderColor:
+                isRegistering && !passwordValid ? "#d32f2f" : "#ccc",
+            }}
             required
             disabled={loading}
-            autoComplete="new-password"
+            autoComplete="current-password"
           />
+          {showPassword ? (
+            <EyeOff size={20} style={eyeIconStyle} onClick={() => setShowPassword(false)} />
+          ) : (
+            <Eye size={20} style={eyeIconStyle} onClick={() => setShowPassword(true)} />
+          )}
+        </div>
+
+        {isRegistering && !passwordValid && (
+          <p style={{ ...errorStyle, fontSize: "0.8rem", marginTop: "-5px" }}>
+            Must include uppercase, lowercase, number, and special symbol.
+          </p>
+        )}
+
+        <p style={{ fontSize: "0.8rem", color: "#555", margin: "-5px 0 10px" }}>
+          🔒 Your password is handled securely according to EU GDPR standards.
+        </p>
+
+        {isRegistering && (
+          <div style={inputContainer}>
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              style={inputStyle}
+              required
+              disabled={loading}
+              autoComplete="new-password"
+            />
+            {showConfirmPassword ? (
+              <EyeOff
+                size={20}
+                style={eyeIconStyle}
+                onClick={() => setShowConfirmPassword(false)}
+              />
+            ) : (
+              <Eye
+                size={20}
+                style={eyeIconStyle}
+                onClick={() => setShowConfirmPassword(true)}
+              />
+            )}
+          </div>
         )}
 
         {error && <p style={errorStyle}>{error}</p>}
