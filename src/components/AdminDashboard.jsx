@@ -14,7 +14,7 @@ import { useNavigate } from "react-router-dom";
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [activeTab, setActiveTab] = useState("users"); // users | bookings | deletion
+  const [activeTab, setActiveTab] = useState("users");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,28 +31,44 @@ const AdminDashboard = () => {
           adminGetAllBookings(),
           getMachines(),
         ]);
+
         const usersList = Array.isArray(usersRes) ? usersRes : usersRes.data || [];
         const machinesList = Array.isArray(machinesRes) ? machinesRes : machinesRes.data || [];
         const bookingsList = Array.isArray(bookingsRes) ? bookingsRes : bookingsRes.data || [];
+
         const enrichedBookings = bookingsList
           .filter((b) => b.status === "booked")
           .map((b) => {
-            const machine = machinesList.find((m) => m._id === b.machine?._id || m._id === b.machineId);
-            const user = usersList.find((u) => u._id === b.user?._id || u._id === b.userId);
+            const machineId =
+              typeof b.machine === "object"
+                ? b.machine?._id?.toString()
+                : b.machine?.toString();
+            const userId =
+              typeof b.user === "object"
+                ? b.user?._id?.toString()
+                : b.user?.toString();
+
+            const machine = machinesList.find((m) => m._id?.toString() === machineId);
+            const user = usersList.find((u) => u._id?.toString() === userId);
+
             const start = DateTime.fromISO(b.start).setZone("Europe/Helsinki");
             const end = DateTime.fromISO(b.end).setZone("Europe/Helsinki");
+
             return {
               ...b,
-              machineName: machine?.name || "Unknown",
+              machineName: machine?.name || machine?.code || "Unknown Machine",
               machineType: machine?.type || "unknown",
               userName: user?.name || "Unknown",
               userEmail: user?.email || "unknown@example.com",
               formattedDate: start.isValid ? start.toFormat("MMM dd, yyyy") : "N/A",
-              formattedTime: start.isValid && end.isValid ? `${start.toFormat("HH:mm")} - ${end.toFormat("HH:mm")}` : "N/A",
-              duration: start.isValid && end.isValid ? end.diff(start, "hours").hours : 0,
+              formattedTime:
+                start.isValid && end.isValid
+                  ? `${start.toFormat("HH:mm")} - ${end.toFormat("HH:mm")}`
+                  : "N/A",
             };
           })
           .sort((a, b) => new Date(b.start) - new Date(a.start));
+
         setUsers(usersList);
         setBookings(enrichedBookings);
       } catch (err) {
@@ -69,8 +85,11 @@ const AdminDashboard = () => {
     if (!window.confirm("Approve this user?")) return;
     try {
       await approveUserById(userId);
+      const now = new Date().toISOString();
       setUsers((prev) =>
-        prev.map((u) => (u._id === userId ? { ...u, isApproved: true } : u))
+        prev.map((u) =>
+          u._id === userId ? { ...u, isApproved: true, approvedAt: now } : u
+        )
       );
       alert("User approved!");
     } catch {
@@ -79,7 +98,10 @@ const AdminDashboard = () => {
   };
 
   const handleApproveDeletion = async (userId) => {
-    if (!window.confirm("Approve this deletion request and permanently delete this user?")) return;
+    if (
+      !window.confirm("Approve this deletion request and permanently delete this user?")
+    )
+      return;
     try {
       await deleteUserById(userId);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
@@ -90,22 +112,34 @@ const AdminDashboard = () => {
   };
 
   const handleToggleRole = async (userId, currentRole) => {
-    if (!window.confirm(`Change role to ${currentRole === "admin" ? "user" : "admin"}?`)) return;
+    if (
+      !window.confirm(
+        `Change role to ${currentRole === "admin" ? "user" : "admin"}?`
+      )
+    )
+      return;
     try {
       await toggleUserRole(userId);
       setUsers((prev) =>
         prev.map((u) =>
-          u._id === userId ? { ...u, role: currentRole === "admin" ? "user" : "admin" } : u
+          u._id === userId
+            ? { ...u, role: currentRole === "admin" ? "user" : "admin" }
+            : u
         )
       );
-      alert(`User role changed to ${currentRole === "admin" ? "user" : "admin"}!`);
+      alert(
+        `User role changed to ${
+          currentRole === "admin" ? "user" : "admin"
+        } successfully!`
+      );
     } catch {
       alert("Failed to change user role.");
     }
   };
 
   const handleDirectDelete = async (userId) => {
-    if (!window.confirm("Permanently delete this user? This action cannot be undone.")) return;
+    if (!window.confirm("Permanently delete this user? This action cannot be undone."))
+      return;
     try {
       await deleteUserById(userId);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
@@ -126,7 +160,8 @@ const AdminDashboard = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-600">Loading...</div>;
+  if (loading)
+    return <div className="p-8 text-center text-gray-600">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
   const filteredUsers = users.filter(
@@ -147,10 +182,7 @@ const AdminDashboard = () => {
         <div className="admin-header">
           <h1>Admin Dashboard</h1>
           <div className="action-buttons">
-            <button
-              onClick={() => window.location.reload()}
-              className="refresh-button"
-            >
+            <button onClick={() => window.location.reload()} className="refresh-button">
               Refresh
             </button>
             <button
@@ -164,6 +196,8 @@ const AdminDashboard = () => {
             </button>
           </div>
         </div>
+
+        {/* === Search & Tabs === */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
           <input
             type="text"
@@ -179,11 +213,15 @@ const AdminDashboard = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`tab-button ${activeTab === tab ? "active" : ""}`}
               >
-                {tab === "deletion" ? "Deletion Requests" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === "deletion"
+                  ? "Deletion Requests"
+                  : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </div>
         </div>
+
+        {/* === USERS TAB === */}
         {activeTab === "users" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg">
             <table className="min-w-full">
@@ -193,6 +231,7 @@ const AdminDashboard = () => {
                   <th>Email</th>
                   <th className="text-center">Role</th>
                   <th className="text-center">Approval</th>
+                  <th className="text-center">Approved At</th>
                   <th className="text-center">Change Role</th>
                   <th className="text-center">Delete</th>
                 </tr>
@@ -205,45 +244,46 @@ const AdminDashboard = () => {
                     <td className="px-6 py-4 text-center">{u.role}</td>
                     <td className="px-6 py-4 text-center">
                       {u.isApproved ? (
-                        <span className="status-badge bg-green-100 text-green-800">Approved</span>
+                        <span className="status-badge bg-green-100 text-green-800">
+                          Approved
+                        </span>
                       ) : (
                         <button
                           onClick={() => handleApprove(u._id)}
-                          className="approve-button"
                           style={{
-                            backgroundColor: '#2ecc71',
-                            color: 'white',
-                            padding: '6px 12px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
+                            backgroundColor: "#2ecc71",
+                            color: "white",
+                            padding: "6px 12px",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontWeight: "bold",
+                            cursor: "pointer",
                           }}
-                          onMouseOver={(e) => (e.target.style.backgroundColor = '#27ae60')}
-                          onMouseOut={(e) => (e.target.style.backgroundColor = '#2ecc71')}
                         >
                           Approve
                         </button>
                       )}
                     </td>
+                    <td className="px-6 py-4 text-center text-gray-600 text-sm">
+                      {u.approvedAt
+                        ? DateTime.fromISO(u.approvedAt)
+                            .setZone("Europe/Helsinki")
+                            .toFormat("MMM dd, HH:mm")
+                        : "—"}
+                    </td>
                     <td className="px-6 py-4 text-center">
                       {u._id !== currentUserId ? (
                         <button
                           onClick={() => handleToggleRole(u._id, u.role)}
-                          className="change-role-button"
                           style={{
-                            backgroundColor: '#3498db',
-                            color: 'white',
-                            padding: '6px 12px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
+                            backgroundColor: "#3498db",
+                            color: "white",
+                            padding: "6px 12px",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontWeight: "bold",
+                            cursor: "pointer",
                           }}
-                          onMouseOver={(e) => (e.target.style.backgroundColor = '#2980b9')}
-                          onMouseOut={(e) => (e.target.style.backgroundColor = '#3498db')}
                         >
                           {u.role === "admin" ? "Make User" : "Make Admin"}
                         </button>
@@ -255,19 +295,15 @@ const AdminDashboard = () => {
                       {u._id !== currentUserId ? (
                         <button
                           onClick={() => handleDirectDelete(u._id)}
-                          className="delete-button"
                           style={{
-                            backgroundColor: '#e74c3c',
-                            color: 'white',
-                            padding: '6px 12px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
+                            backgroundColor: "#e74c3c",
+                            color: "white",
+                            padding: "6px 12px",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontWeight: "bold",
+                            cursor: "pointer",
                           }}
-                          onMouseOver={(e) => (e.target.style.backgroundColor = '#c0392b')}
-                          onMouseOut={(e) => (e.target.style.backgroundColor = '#e74c3c')}
                         >
                           Delete
                         </button>
@@ -281,6 +317,8 @@ const AdminDashboard = () => {
             </table>
           </div>
         )}
+
+        {/* === BOOKINGS TAB === */}
         {activeTab === "bookings" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6">
             <table className="min-w-full">
@@ -297,25 +335,26 @@ const AdminDashboard = () => {
                 {filteredBookings.map((b) => (
                   <tr key={b._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">{b.userName}</td>
-                    <td className="px-6 py-4">{b.machineName}</td>
+                    <td className="px-6 py-4">
+                      {b.machineName}
+                      <div className="text-xs text-gray-500">
+                        ({b.machineType})
+                      </div>
+                    </td>
                     <td className="px-6 py-4">{b.formattedDate}</td>
                     <td className="px-6 py-4 font-mono">{b.formattedTime}</td>
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => handleCancelBooking(b._id)}
-                        className="unbook-button"
                         style={{
-                          backgroundColor: '#e74c3c',
-                          color: 'white',
-                          padding: '6px 12px',
-                          border: 'none',
-                          borderRadius: '4px',
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
+                          backgroundColor: "#e74c3c",
+                          color: "white",
+                          padding: "6px 12px",
+                          border: "none",
+                          borderRadius: "4px",
+                          fontWeight: "bold",
+                          cursor: "pointer",
                         }}
-                        onMouseOver={(e) => (e.target.style.backgroundColor = '#c0392b')}
-                        onMouseOut={(e) => (e.target.style.backgroundColor = '#e74c3c')}
                       >
                         Unbook
                       </button>
@@ -326,6 +365,8 @@ const AdminDashboard = () => {
             </table>
           </div>
         )}
+
+        {/* === DELETION TAB === */}
         {activeTab === "deletion" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6">
             <table className="min-w-full">
@@ -345,25 +386,23 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4 font-mono text-sm">{u.email}</td>
                       <td className="px-6 py-4">
                         {u.deletionRequestedAt
-                          ? DateTime.fromISO(u.deletionRequestedAt).setZone("Europe/Helsinki").toFormat("MMM dd, HH:mm")
+                          ? DateTime.fromISO(u.deletionRequestedAt)
+                              .setZone("Europe/Helsinki")
+                              .toFormat("MMM dd, HH:mm")
                           : "—"}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => handleApproveDeletion(u._id)}
-                          className="delete-request-button"
                           style={{
-                            backgroundColor: '#e74c3c',
-                            color: 'white',
-                            padding: '6px 12px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
+                            backgroundColor: "#e74c3c",
+                            color: "white",
+                            padding: "6px 12px",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontWeight: "bold",
+                            cursor: "pointer",
                           }}
-                          onMouseOver={(e) => (e.target.style.backgroundColor = '#c0392b')}
-                          onMouseOut={(e) => (e.target.style.backgroundColor = '#e74c3c')}
                         >
                           Approve Deletion
                         </button>
@@ -382,6 +421,7 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+
       <footer className="mt-12 text-center text-gray-500 text-sm">
         Laundry Admin © {new Date().getFullYear()}
       </footer>
