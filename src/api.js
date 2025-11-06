@@ -192,6 +192,34 @@ export const getMachines = async () => {
   }
 };
 
+/**
+ * ✅ Add a new machine (Admin only)
+ * Requires: name, code, type, optional location
+ */
+export const addMachine = async ({ name, code, type, location }) => {
+  try {
+    console.log("🧠 Adding new machine:", { name, code, type, location });
+    const { data } = await API.post("/machines", { name, code, type, location });
+    console.log("✅ Machine added successfully:", data);
+    return data?.data || data;
+  } catch (err) {
+    throw handleError(err, "Failed to add machine");
+  }
+};
+
+/**
+ * ✅ Delete machine by ID (Admin only)
+ */
+export const deleteMachineById = async (id) => {
+  try {
+    const { data } = await API.delete(`/machines/${id}`);
+    console.log("🗑️ Machine deleted:", id);
+    return data;
+  } catch (err) {
+    throw handleError(err, "Failed to delete machine");
+  }
+};
+
 /* ===========================================
    👥 ADMIN USER MANAGEMENT
    =========================================== */

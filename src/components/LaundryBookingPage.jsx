@@ -1,4 +1,3 @@
-// src/components/LaundryBookingPage.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { createBooking, cancelBooking, getBookings, getMachines } from "../api";
@@ -32,7 +31,7 @@ const LaundryBookingPage = ({
   const [allBookings, setAllBookings] = useState([]);
   const [userBookings, setUserBookings] = useState([]);
   const [machines, setMachines] = useState([]);
-  const [cancelingId, setCancelingId] = useState(null); // ✅ Only track one cancel at a time
+  const [cancelingId, setCancelingId] = useState(null);
 
   const navigate = useNavigate();
 
@@ -64,7 +63,6 @@ const LaundryBookingPage = ({
     return a.toMillis() === b.toMillis();
   };
 
-  /** ✅ Refresh bookings (with retry) */
   const refreshBookings = useCallback(async (retries = 2) => {
     try {
       const bookings = await getBookings();
@@ -88,7 +86,6 @@ const LaundryBookingPage = ({
     }
   }, []);
 
-  /** ✅ Load machines and bookings on mount */
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -122,7 +119,6 @@ const LaundryBookingPage = ({
     }));
   };
 
-  /** ✅ Book or unbook a slot */
   const toggleBooking = async (slotId, machineName, machineType) => {
     setError("");
     setLoading(true);
@@ -175,10 +171,9 @@ const LaundryBookingPage = ({
     }
   };
 
-  /** ✅ Cancel one booking (isolated state) */
   const handleCancel = async (bookingId) => {
     setError("");
-    setCancelingId(bookingId); // 👈 track this booking
+    setCancelingId(bookingId);
     try {
       await cancelBooking(bookingId);
       await refreshBookings();
@@ -186,12 +181,13 @@ const LaundryBookingPage = ({
     } catch (err) {
       console.error("Cancel booking error:", err);
       const msg = err.message || "Failed to cancel booking.";
-      setError(msg.includes("Not authorized")
-        ? "You can only cancel your own bookings."
-        : msg
+      setError(
+        msg.includes("Not authorized")
+          ? "You can only cancel your own bookings."
+          : msg
       );
     } finally {
-      setCancelingId(null); // 👈 reset after done
+      setCancelingId(null);
     }
   };
 
@@ -204,8 +200,7 @@ const LaundryBookingPage = ({
       </div>
 
       <h1>
-        Schedule for {selectedDay?.dayName},{" "}
-        {selectedDayDate.toDateString()}
+        Schedule for {selectedDay?.dayName}, {selectedDayDate.toDateString()}
       </h1>
 
       {error && (
@@ -218,87 +213,98 @@ const LaundryBookingPage = ({
         <p style={{ textAlign: "center", color: "#3498db" }}>Loading...</p>
       )}
 
-      {/* ✅ Machine list section */}
+      {/* Machine list section */}
       <div className="machine-list">
         {machines.length === 0 && !loading ? (
           <p style={{ textAlign: "center", color: "#7f8c8d" }}>
             No machines available.
           </p>
         ) : (
-          machines.map((machine) => (
-            <div key={machine._id} className="machine-schedule">
-              <h3
-                onClick={() => toggleMachineOpen(machine.name)}
-                style={{
-                  cursor: "pointer",
-                  userSelect: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  fontSize: "1.2rem",
-                  margin: "12px 0",
-                }}
-              >
-                <span style={{ fontSize: "1.3rem" }}>
-                  {openMachines[machine.name] ? "▼" : "▶"}
-                </span>
-                <strong>{machine.name}</strong>
-                <span
-                  style={{ fontWeight: "normal", color: "#7f8c8d" }}
+          [...machines]
+            .sort((a, b) => {
+              const extractNum = (str) => {
+                const n = str?.match(/\d+/);
+                return n ? parseInt(n[0]) : 0;
+              };
+              const numA = extractNum(a.name || a.code);
+              const numB = extractNum(b.name || b.code);
+              if (numA !== numB) return numA - numB;
+              if (a.type === "washer" && b.type === "dryer") return -1;
+              if (a.type === "dryer" && b.type === "washer") return 1;
+              return 0;
+            })
+            .map((machine) => (
+              <div key={machine._id} className="machine-schedule">
+                <h3
+                  onClick={() => toggleMachineOpen(machine.name)}
+                  style={{
+                    cursor: "pointer",
+                    userSelect: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "1.2rem",
+                    margin: "12px 0",
+                  }}
                 >
-                  ({machine.type})
-                </span>
-              </h3>
+                  <span style={{ fontSize: "1.3rem" }}>
+                    {openMachines[machine.name] ? "▼" : "▶"}
+                  </span>
+                  <strong>{machine.name}</strong>
+                  <span style={{ fontWeight: "normal", color: "#7f8c8d" }}>
+                    ({machine.type})
+                  </span>
+                </h3>
 
-              {openMachines[machine.name] && (
-                <div className="time-slots-grid">
-                  {timeSlots.map((slot) => {
-                    const slotId = `${selectedDayDate.toDateString()}_${machine.name}_${slot}`;
-                    const machineId = machine._id.toString();
-                    const slotStartUtc = startUtcFromSlot(slot).toISO();
-                    const isTaken = allBookings.some(
-                      (b) =>
-                        getBookingMachineId(b) === machineId &&
-                        isSameUtcHour(b.start, slotStartUtc) &&
-                        b.status === "booked"
-                    );
-                    const isMine = userBookings.some(
-                      (b) =>
-                        getBookingMachineId(b) === machineId &&
-                        isSameUtcHour(b.start, slotStartUtc) &&
-                        b.status === "booked"
-                    );
+                {openMachines[machine.name] && (
+                  <div className="time-slots-grid">
+                    {timeSlots.map((slot) => {
+                      const slotId = `${selectedDayDate.toDateString()}_${machine.name}_${slot}`;
+                      const machineId = machine._id.toString();
+                      const slotStartUtc = startUtcFromSlot(slot).toISO();
+                      const isTaken = allBookings.some(
+                        (b) =>
+                          getBookingMachineId(b) === machineId &&
+                          isSameUtcHour(b.start, slotStartUtc) &&
+                          b.status === "booked"
+                      );
+                      const isMine = userBookings.some(
+                        (b) =>
+                          getBookingMachineId(b) === machineId &&
+                          isSameUtcHour(b.start, slotStartUtc) &&
+                          b.status === "booked"
+                      );
 
-                    return (
-                      <div key={slotId} className="time-slot-item">
-                        <span className="time-slot-label">{slot}</span>
-                        <button
-                          onClick={() =>
-                            (!isTaken || isMine) &&
-                            toggleBooking(slotId, machine.name, machine.type)
-                          }
-                          className={`time-slot-button ${
-                            isMine
-                              ? "unbook"
-                              : isTaken
-                              ? "taken"
-                              : "book"
-                          }`}
-                          disabled={loading || (isTaken && !isMine)}
-                        >
-                          {isMine ? "Unbook" : isTaken ? "Taken" : "Book"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))
+                      return (
+                        <div key={slotId} className="time-slot-item">
+                          <span className="time-slot-label">{slot}</span>
+                          <button
+                            onClick={() =>
+                              (!isTaken || isMine) &&
+                              toggleBooking(slotId, machine.name, machine.type)
+                            }
+                            className={`time-slot-button ${
+                              isMine
+                                ? "unbook"
+                                : isTaken
+                                ? "taken"
+                                : "book"
+                            }`}
+                            disabled={loading || (isTaken && !isMine)}
+                          >
+                            {isMine ? "Unbook" : isTaken ? "Taken" : "Book"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))
         )}
       </div>
 
-      {/* ✅ User Bookings List */}
+      {/* User Bookings List */}
       <div className="booked-list">
         <h2
           style={{
@@ -348,10 +354,7 @@ const LaundryBookingPage = ({
                       <strong style={{ color: "#2c3e50" }}>
                         {machineName}
                       </strong>
-                      <span style={{ color: "#7f8c8d" }}>
-                        {" "}
-                        ({machineType})
-                      </span>
+                      <span style={{ color: "#7f8c8d" }}> ({machineType})</span>
                       <br />
                       <span
                         style={{

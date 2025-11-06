@@ -635,4 +635,33 @@ input:focus {
     padding: 0.8rem;
     font-size: 0.95rem;
   }
+
+  /* ✅ Responsive Admin Tables */
+  table {
+    font-size: 0.85rem !important;
+    min-width: 600px;
+  }
+
+  th, td {
+    padding: 8px 6px !important;
+    white-space: nowrap;
+  }
+
+  .admin-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .rounded-2xl {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }

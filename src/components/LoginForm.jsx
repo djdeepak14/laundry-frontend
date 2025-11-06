@@ -330,10 +330,6 @@ const LoginForm = ({ onLoginSuccess }) => {
           </p>
         )}
 
-        <p style={{ fontSize: "0.8rem", color: "#555", margin: "-5px 0 10px" }}>
-          🔒 Your password is handled securely according to EU GDPR standards.
-        </p>
-
         {isRegistering && (
           <div style={inputContainer}>
             <input
@@ -360,6 +356,20 @@ const LoginForm = ({ onLoginSuccess }) => {
               />
             )}
           </div>
+        )}
+
+        {/* ✅ GDPR text moved below Confirm Password */}
+        {isRegistering && (
+          <p
+            style={{
+              fontSize: "0.8rem",
+              color: "#555",
+              margin: "6px 0 12px",
+              textAlign: "left",
+            }}
+          >
+            🔒 Your password is handled securely according to EU GDPR standards.
+          </p>
         )}
 
         {error && <p style={errorStyle}>{error}</p>}

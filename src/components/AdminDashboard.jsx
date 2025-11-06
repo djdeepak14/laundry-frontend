@@ -7,6 +7,8 @@ import {
   adminCancelAnyBooking,
   getMachines,
   toggleUserRole,
+  addMachine,
+  deleteMachineById,
 } from "../api";
 import { DateTime } from "luxon";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [machines, setMachines] = useState([]);
   const [activeTab, setActiveTab] = useState("users");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,9 +35,15 @@ const AdminDashboard = () => {
           getMachines(),
         ]);
 
-        const usersList = Array.isArray(usersRes) ? usersRes : usersRes.data || [];
-        const machinesList = Array.isArray(machinesRes) ? machinesRes : machinesRes.data || [];
-        const bookingsList = Array.isArray(bookingsRes) ? bookingsRes : bookingsRes.data || [];
+        const usersList = Array.isArray(usersRes)
+          ? usersRes
+          : usersRes.data || [];
+        const machinesList = Array.isArray(machinesRes)
+          ? machinesRes
+          : machinesRes.data || [];
+        const bookingsList = Array.isArray(bookingsRes)
+          ? bookingsRes
+          : bookingsRes.data || [];
 
         const enrichedBookings = bookingsList
           .filter((b) => b.status === "booked")
@@ -48,7 +57,9 @@ const AdminDashboard = () => {
                 ? b.user?._id?.toString()
                 : b.user?.toString();
 
-            const machine = machinesList.find((m) => m._id?.toString() === machineId);
+            const machine = machinesList.find(
+              (m) => m._id?.toString() === machineId
+            );
             const user = usersList.find((u) => u._id?.toString() === userId);
 
             const start = DateTime.fromISO(b.start).setZone("Europe/Helsinki");
@@ -60,7 +71,9 @@ const AdminDashboard = () => {
               machineType: machine?.type || "unknown",
               userName: user?.name || "Unknown",
               userEmail: user?.email || "unknown@example.com",
-              formattedDate: start.isValid ? start.toFormat("MMM dd, yyyy") : "N/A",
+              formattedDate: start.isValid
+                ? start.toFormat("MMM dd, yyyy")
+                : "N/A",
               formattedTime:
                 start.isValid && end.isValid
                   ? `${start.toFormat("HH:mm")} - ${end.toFormat("HH:mm")}`
@@ -71,6 +84,7 @@ const AdminDashboard = () => {
 
         setUsers(usersList);
         setBookings(enrichedBookings);
+        setMachines(machinesList);
       } catch (err) {
         console.error("Admin data load error:", err);
         setError("Failed to load data. Please refresh.");
@@ -81,6 +95,7 @@ const AdminDashboard = () => {
     fetchAllData();
   }, []);
 
+  // --- USERS MANAGEMENT ---
   const handleApprove = async (userId) => {
     if (!window.confirm("Approve this user?")) return;
     try {
@@ -99,7 +114,9 @@ const AdminDashboard = () => {
 
   const handleApproveDeletion = async (userId) => {
     if (
-      !window.confirm("Approve this deletion request and permanently delete this user?")
+      !window.confirm(
+        "Approve this deletion request and permanently delete this user?"
+      )
     )
       return;
     try {
@@ -138,8 +155,7 @@ const AdminDashboard = () => {
   };
 
   const handleDirectDelete = async (userId) => {
-    if (!window.confirm("Permanently delete this user? This action cannot be undone."))
-      return;
+    if (!window.confirm("Permanently delete this user?")) return;
     try {
       await deleteUserById(userId);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
@@ -149,6 +165,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // --- BOOKINGS MANAGEMENT ---
   const handleCancelBooking = async (bookingId) => {
     if (!window.confirm("Cancel this booking?")) return;
     try {
@@ -157,6 +174,35 @@ const AdminDashboard = () => {
       alert("Booking cancelled successfully!");
     } catch {
       alert("Failed to cancel booking.");
+    }
+  };
+
+  // --- MACHINES MANAGEMENT ---
+  const handleAddMachine = async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const name = form.name.value.trim();
+    const code = form.code.value.trim();
+    const type = form.type.value;
+    if (!name || !code) return alert("Please fill all fields");
+    try {
+      const newMachine = await addMachine({ name, code, type });
+      setMachines((prev) => [...prev, newMachine]);
+      form.reset();
+      alert("Machine added successfully!");
+    } catch {
+      alert("Failed to add machine.");
+    }
+  };
+
+  const handleDeleteMachine = async (id) => {
+    if (!window.confirm("Delete this machine?")) return;
+    try {
+      await deleteMachineById(id);
+      setMachines((prev) => prev.filter((m) => m._id !== id));
+      alert("Machine deleted successfully!");
+    } catch {
+      alert("Failed to delete machine.");
     }
   };
 
@@ -207,7 +253,7 @@ const AdminDashboard = () => {
             className="search-input"
           />
           <div className="tab-buttons">
-            {["users", "bookings", "deletion"].map((tab) => (
+            {["users", "bookings", "machines", "deletion"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -366,6 +412,111 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* === MACHINES TAB === */}
+        {activeTab === "machines" && (
+          <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6 p-6">
+            <h2 className="text-xl font-semibold mb-4">Manage Machines</h2>
+
+            <form
+              onSubmit={handleAddMachine}
+              className="mb-6 flex flex-wrap gap-4 items-end"
+            >
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-600">Machine Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  className="border rounded-lg px-3 py-2"
+                  placeholder="e.g. Washer 1"
+                  required
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-600">Machine Code</label>
+                <input
+                  type="text"
+                  name="code"
+                  className="border rounded-lg px-3 py-2"
+                  placeholder="e.g. W001"
+                  required
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-600">Type</label>
+                <select
+                  name="type"
+                  className="border rounded-lg px-3 py-2"
+                  required
+                >
+                  <option value="washer">Washer</option>
+                  <option value="dryer">Dryer</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                style={{
+                  backgroundColor: "#2ecc71",
+                  color: "white",
+                  padding: "8px 16px",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                Add Machine
+              </button>
+            </form>
+
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Code</th>
+                  <th>Type</th>
+                  <th className="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {machines && machines.length ? (
+                  machines.map((m) => (
+                    <tr key={m._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">{m.name}</td>
+                      <td className="px-6 py-4 font-mono text-sm">{m.code}</td>
+                      <td className="px-6 py-4">{m.type}</td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => handleDeleteMachine(m._id)}
+                          style={{
+                            backgroundColor: "#e74c3c",
+                            color: "white",
+                            padding: "6px 12px",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontWeight: "bold",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="text-center py-8 text-gray-500"
+                    >
+                      No machines found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* === DELETION TAB === */}
         {activeTab === "deletion" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6">
@@ -411,7 +562,10 @@ const AdminDashboard = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4" className="text-center py-8 text-gray-500">
+                    <td
+                      colSpan="4"
+                      className="text-center py-8 text-gray-500"
+                    >
                       No pending deletion requests.
                     </td>
                   </tr>
