@@ -1,4 +1,4 @@
-// src/index.js   (or src/main.jsx if you use Vite)
+// (or src/main.jsx if you use Vite)
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

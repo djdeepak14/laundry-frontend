@@ -1,12 +1,11 @@
-/* -----------------------------------
-   RESET & BASE STYLES
------------------------------------ */
+/* Base reset styles for consistent layout across browsers */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+/* Default body styles for font, color, and layout */
 body {
   background-color: #f9fafb;
   color: #1f2937;
@@ -15,9 +14,7 @@ body {
   min-height: 100vh;
 }
 
-/* -----------------------------------
-   CONTAINER
------------------------------------ */
+/* Main container setup for layout consistency */
 .container {
   max-width: 1280px;
   margin: 0 auto;
@@ -28,9 +25,7 @@ body {
   background-color: #f9fafb;
 }
 
-/* -----------------------------------
-   LANDING PAGE (Logo, Title, Date/Time)
------------------------------------ */
+/* Landing page layout and logo styling */
 .landing-center {
   text-align: center;
   margin-bottom: 2.5rem;
@@ -42,6 +37,7 @@ body {
   margin-bottom: 1.25rem;
 }
 
+/* App title styling */
 .app-title {
   font-size: 2.25rem;
   font-weight: 700;
@@ -49,6 +45,7 @@ body {
   color: #1f2937;
 }
 
+/* Current date and time section on landing page */
 .current-date-time {
   font-size: 1.3rem;
   font-weight: 600;
@@ -65,9 +62,7 @@ body {
   color: #4b5563;
 }
 
-/* -----------------------------------
-   UNIVERSAL BUTTON STYLES
------------------------------------ */
+/* Universal button styles for consistent look */
 button {
   border: none;
   cursor: pointer;
@@ -100,7 +95,7 @@ button:disabled {
   background: linear-gradient(135deg, #6b7280, #4b5563);
 }
 
-/* Button Variants */
+/* Color variations for specific button actions */
 .refresh-button {
   background: linear-gradient(135deg, #10b981, #047857);
 }
@@ -131,6 +126,7 @@ button:disabled {
   background: linear-gradient(135deg, #16a34a, #15803d);
 }
 
+/* Buttons used in booking time slots */
 .time-slot-button.book {
   background: linear-gradient(135deg, #22c55e, #16a34a);
 }
@@ -159,9 +155,7 @@ button:disabled {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* -----------------------------------
-   HOMEPAGE BUTTONS
------------------------------------ */
+/* Layout for home page buttons */
 .home-action-buttons {
   display: flex;
   justify-content: space-between;
@@ -180,9 +174,7 @@ button:disabled {
   border-radius: 12px;
 }
 
-/* -----------------------------------
-   ADMIN DASHBOARD HEADER
------------------------------------ */
+/* Header section styling for admin dashboard */
 .admin-header {
   display: flex;
   justify-content: space-between;
@@ -201,9 +193,7 @@ button:disabled {
   gap: 1.25rem;
 }
 
-/* -----------------------------------
-   TABS
------------------------------------ */
+/* Tab navigation styles for switching between sections */
 .tab-buttons {
   display: flex;
   gap: 0.75rem;
@@ -232,9 +222,7 @@ button:disabled {
   background: linear-gradient(135deg, #2563eb, #1e3a8a);
 }
 
-/* -----------------------------------
-   SEARCH INPUT
------------------------------------ */
+/* Search bar styling for user and booking tables */
 .search-input {
   flex: 1;
   padding: 0.9rem 1.25rem;
@@ -250,9 +238,7 @@ button:disabled {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-/* -----------------------------------
-   CALENDAR HEADER
------------------------------------ */
+/* Calendar navigation and layout */
 .calendar-header-container {
   display: flex;
   justify-content: center;
@@ -280,9 +266,7 @@ button:disabled {
   background: linear-gradient(135deg, #2563eb, #1e3a8a);
 }
 
-/* -----------------------------------
-   CALENDAR GRID
------------------------------------ */
+/* Calendar grid structure for displaying days and weeks */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -327,9 +311,7 @@ button:disabled {
   color: #ffffff;
 }
 
-/* -----------------------------------
-   MACHINE SCHEDULES
------------------------------------ */
+/* Styles for machine schedule sections */
 .machine-schedule {
   margin-bottom: 1.5rem;
 }
@@ -341,9 +323,7 @@ button:disabled {
   font-weight: 600;
 }
 
-/* -----------------------------------
-   TIME SLOTS
------------------------------------ */
+/* Grid layout for time slot buttons */
 .time-slots-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -366,9 +346,7 @@ button:disabled {
   margin-right: 0.75rem;
 }
 
-/* -----------------------------------
-   BOOKED LIST
------------------------------------ */
+/* Styling for booked machine list view */
 .booked-list {
   margin-top: 2.5rem;
   background-color: #ffffff;
@@ -399,9 +377,7 @@ button:disabled {
   border-radius: 8px;
 }
 
-/* -----------------------------------
-   BOOKED LAUNDRY BOX
------------------------------------ */
+/* Layout for booked laundry tables */
 .booked-laundry-box {
   background-color: #ffffff;
   border-radius: 12px;
@@ -430,9 +406,7 @@ button:disabled {
   transition: background-color 0.2s;
 }
 
-/* -----------------------------------
-   TABLE STYLING (Admin Tables)
------------------------------------ */
+/* General table formatting for admin panels */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -474,9 +448,7 @@ tr:hover {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-/* -----------------------------------
-   STATUS BADGE
------------------------------------ */
+/* Badge style used for status indicators like "approved" */
 .status-badge {
   padding: 0.3rem 0.9rem;
   border-radius: 9999px;
@@ -484,9 +456,7 @@ tr:hover {
   font-weight: 500;
 }
 
-/* -----------------------------------
-   FORMS
------------------------------------ */
+/* Form layout and input styling */
 form {
   display: flex;
   flex-direction: column;
@@ -512,9 +482,7 @@ input:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-/* -----------------------------------
-   LOGIN CONTAINER
------------------------------------ */
+/* Login form container styling */
 .login-container {
   max-width: 320px;
   margin: 120px auto;
@@ -528,9 +496,7 @@ input:focus {
   padding: 0.75rem;
 }
 
-/* -----------------------------------
-   HOME HEADER BUTTON
------------------------------------ */
+/* Header button used on the homepage */
 .home-header-button {
   background: linear-gradient(135deg, #3b82f6, #1e40af);
   padding: 0.75rem 1.5rem;
@@ -542,9 +508,7 @@ input:focus {
   background: linear-gradient(135deg, #2563eb, #1e3a8a);
 }
 
-/* -----------------------------------
-   RESPONSIVE DESIGN
------------------------------------ */
+/* Responsive design for smaller screens */
 @media (max-width: 640px) {
   .home-action-buttons {
     flex-direction: column;
@@ -636,7 +600,6 @@ input:focus {
     font-size: 0.95rem;
   }
 
-  /* ✅ Responsive Admin Tables */
   table {
     font-size: 0.85rem !important;
     min-width: 600px;

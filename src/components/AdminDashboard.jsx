@@ -13,28 +13,43 @@ import {
 import { DateTime } from "luxon";
 import { useNavigate } from "react-router-dom";
 
+// main admin dashboard component
 const AdminDashboard = () => {
+  // states to hold data for users, bookings, and machines
   const [users, setUsers] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [machines, setMachines] = useState([]);
+
+  // active tab controls what section of the dashboard is visible
   const [activeTab, setActiveTab] = useState("users");
+
+  // for loading status and handling errors
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // search term for filtering tables
   const [searchTerm, setSearchTerm] = useState("");
+
+  // navigation hook from react-router
   const navigate = useNavigate();
+
+  // current logged-in user id from local storage
   const currentUserId = localStorage.getItem("userId");
 
+  // fetch all data on mount: users, bookings, and machines
   useEffect(() => {
     const fetchAllData = async () => {
       setLoading(true);
       setError("");
       try {
+        // fetch all at once for performance
         const [usersRes, bookingsRes, machinesRes] = await Promise.all([
           getAllUsers(),
           adminGetAllBookings(),
           getMachines(),
         ]);
 
+        // handle possible response shapes
         const usersList = Array.isArray(usersRes)
           ? usersRes
           : usersRes.data || [];
@@ -45,6 +60,7 @@ const AdminDashboard = () => {
           ? bookingsRes
           : bookingsRes.data || [];
 
+        // enrich bookings with human-readable info
         const enrichedBookings = bookingsList
           .filter((b) => b.status === "booked")
           .map((b) => {
@@ -57,14 +73,17 @@ const AdminDashboard = () => {
                 ? b.user?._id?.toString()
                 : b.user?.toString();
 
+            // find the related user and machine
             const machine = machinesList.find(
               (m) => m._id?.toString() === machineId
             );
             const user = usersList.find((u) => u._id?.toString() === userId);
 
+            // handle timezones properly using Luxon
             const start = DateTime.fromISO(b.start).setZone("Europe/Helsinki");
             const end = DateTime.fromISO(b.end).setZone("Europe/Helsinki");
 
+            // prepare clean, readable data
             return {
               ...b,
               machineName: machine?.name || machine?.code || "Unknown Machine",
@@ -80,8 +99,10 @@ const AdminDashboard = () => {
                   : "N/A",
             };
           })
+          // newest bookings first
           .sort((a, b) => new Date(b.start) - new Date(a.start));
 
+        // set all data
         setUsers(usersList);
         setBookings(enrichedBookings);
         setMachines(machinesList);
@@ -95,7 +116,7 @@ const AdminDashboard = () => {
     fetchAllData();
   }, []);
 
-  // --- USERS MANAGEMENT ---
+  // user management section
   const handleApprove = async (userId) => {
     if (!window.confirm("Approve this user?")) return;
     try {
@@ -112,6 +133,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // handle GDPR-based deletion approval
   const handleApproveDeletion = async (userId) => {
     if (
       !window.confirm(
@@ -128,6 +150,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // toggle between user and admin roles
   const handleToggleRole = async (userId, currentRole) => {
     if (
       !window.confirm(
@@ -154,6 +177,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // permanent user deletion by admin
   const handleDirectDelete = async (userId) => {
     if (!window.confirm("Permanently delete this user?")) return;
     try {
@@ -165,7 +189,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- BOOKINGS MANAGEMENT ---
+  // cancel any booking by admin
   const handleCancelBooking = async (bookingId) => {
     if (!window.confirm("Cancel this booking?")) return;
     try {
@@ -177,7 +201,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- MACHINES MANAGEMENT ---
+  // machine management section
   const handleAddMachine = async (e) => {
     e.preventDefault();
     const form = e.target;
@@ -195,6 +219,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // delete machine by id
   const handleDeleteMachine = async (id) => {
     if (!window.confirm("Delete this machine?")) return;
     try {
@@ -206,10 +231,12 @@ const AdminDashboard = () => {
     }
   };
 
+  // simple loading and error handling
   if (loading)
     return <div className="p-8 text-center text-gray-600">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
+  // filtering logic for search
   const filteredUsers = users.filter(
     (u) =>
       u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -222,9 +249,12 @@ const AdminDashboard = () => {
       b.machineName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // main dashboard UI layout
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 font-sans">
       <div className="max-w-7xl mx-auto">
+
+        {/* top section: title and logout/refresh buttons */}
         <div className="admin-header">
           <h1>Admin Dashboard</h1>
           <div className="action-buttons">
@@ -243,7 +273,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* === Search & Tabs === */}
+        {/* search bar and tab navigation */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
           <input
             type="text"
@@ -267,7 +297,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* === USERS TAB === */}
+        {/* users management table */}
         {activeTab === "users" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg">
             <table className="min-w-full">
@@ -364,7 +394,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* === BOOKINGS TAB === */}
+        {/* bookings section */}
         {activeTab === "bookings" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6">
             <table className="min-w-full">
@@ -412,11 +442,12 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* === MACHINES TAB === */}
+        {/* machines management section */}
         {activeTab === "machines" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6 p-6">
             <h2 className="text-xl font-semibold mb-4">Manage Machines</h2>
 
+            {/* add machine form */}
             <form
               onSubmit={handleAddMachine}
               className="mb-6 flex flex-wrap gap-4 items-end"
@@ -468,6 +499,7 @@ const AdminDashboard = () => {
               </button>
             </form>
 
+            {/* machines list */}
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -517,7 +549,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* === DELETION TAB === */}
+        {/* deletion requests section */}
         {activeTab === "deletion" && (
           <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mt-6">
             <table className="min-w-full">
@@ -576,6 +608,7 @@ const AdminDashboard = () => {
         )}
       </div>
 
+      {/* simple footer */}
       <footer className="mt-12 text-center text-gray-500 text-sm">
         Laundry Admin © {new Date().getFullYear()}
       </footer>

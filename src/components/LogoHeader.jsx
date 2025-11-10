@@ -1,4 +1,3 @@
-// src/components/LogoHeader.js
 import React from 'react';
 import sevasLogo from '../assets/Sevas.png'; 
 import Clock from './clock'; 
